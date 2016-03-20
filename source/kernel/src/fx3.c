@@ -1,0 +1,637 @@
+/**
+ * @file fx3.c
+ * @brief Portable Kernel
+ * @author Florin Iucha <florin@signbit.net>
+ * @copyright Apache License, Version 2.0
+ */
+
+/*
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * This file is part of FX3 RTOS for ARM Cortex-M4
+ */
+
+#include <assert.h>
+#include <string.h>
+#include <stddef.h>
+
+#include <task.h>
+#include <priority_queue.h>
+
+#include <board.h>
+
+#include <fx3_config.h>
+
+/*
+ * A task can be:
+ *    * running
+ *    * on the runnable queue
+ *    * on the sleeping queue
+ *    * waiting on a semaphore, mutex, event...
+ */
+struct task_control_block* runningTask;
+struct task_control_block* nextRunningTask;
+
+struct task_control_block* firstSleepingTaskToAwake;
+
+// +1 for the heap and +1 for the idle task
+static uint32_t* runnableTasksMemPool[FX3_MAX_TASK_COUNT + 2];
+static struct priority_queue runnableTasks;
+
+// +1 for the heap and +1 for the idle task
+static uint32_t* sleepingTasksMemPool_0[FX3_MAX_TASK_COUNT + 2];
+static struct priority_queue sleepingTasks_0;
+// +1 for the heap and +1 for the idle task
+static uint32_t* sleepingTasksMemPool_1[FX3_MAX_TASK_COUNT + 2];
+static struct priority_queue sleepingTasks_1;
+
+static struct priority_queue* sleepingTasks;
+static struct priority_queue* sleepingTasksNextEpoch;
+
+/*
+ *
+ */
+static uint8_t idleTaskStack[128] __attribute__ ((aligned (16)));
+
+static volatile uint32_t sleepCycles;
+
+static void idleTaskHandler(const void* arg __attribute__((unused)))
+{
+   while (true)
+   {
+      sleepCycles ++;
+      bsp_sleep();
+   }
+}
+
+static const struct task_config idleTaskConfig =
+{
+   .name            = "Idle",
+   .handler         = idleTaskHandler,
+   .argument        = NULL,
+   .priority        = 0xffff,
+   .stackBase       = idleTaskStack,
+   .stackSize       = sizeof(idleTaskStack),
+   .timeSlice_ticks = 0,
+};
+
+struct task_control_block idleTask;
+
+static inline uint32_t computeEffectivePriority(enum task_state state, const struct task_config* config)
+{
+   /*
+    * Shift priority value to allow ready / resting / exhausted "sub-priorities"
+    *
+    * This allows efficient implementation of round-robin scheduling. All tasks
+    * with the same nominal priority, are adjacent in the priority list, and
+    * separate from tasks with other nominal priorities.
+    *
+    * Tasks that have 'exhausted' their round-robin slice have still higher
+    * priorities than runnable tasks with lower priorities. Just, when
+    * selecting between two tasks with the same nominal priority, the
+    * not-exhausted one is clearly more ready to run.
+    */
+   return config->priority * 16 + state;
+}
+
+static void enqueueReadyTask(struct task_control_block* tcb)
+{
+   assert(tcb->config->timeSlice_ticks >= tcb->roundRobinSliceLeft_ticks);
+   tcb->state = TS_READY;
+   if (tcb->config->timeSlice_ticks)
+   {
+      if (0 == tcb->roundRobinSliceLeft_ticks)
+      {
+         tcb->state = TS_EXHAUSTED;
+      }
+   }
+
+   tcb->sleepUntil_ticks  = 0;
+   tcb->effectivePriority = computeEffectivePriority(tcb->state, tcb->config);
+   prq_push(&runnableTasks, &tcb->effectivePriority);
+}
+
+static uint32_t tasksCreated_count;
+
+static void verifyTaskControlBlocks(bool expectTaskInRunningState)
+{
+   bool foundTaskInRunningState = false;
+   uint32_t tasksVisited = 0;
+
+   /*
+    * check task links
+    */
+
+   struct task_control_block* tcb = &idleTask;
+   do
+   {
+      assert(tcb);
+      assert(tcb->config);
+      assert(tcb->config->priority);
+
+      tasksVisited ++;
+
+      if (TS_RUNNING == tcb->state)
+      {
+         assert(! foundTaskInRunningState);
+         foundTaskInRunningState = true;
+      }
+      else
+      {
+         assert(0 == tcb->startedRunningAt_ticks);
+      }
+
+      assert(tcb->nextWithSamePriority);
+
+      if (tcb->nextWithSamePriority == tcb)
+      {
+         assert(0 == tcb->config->timeSlice_ticks);
+      }
+      else
+      {
+         assert(tcb->config->timeSlice_ticks);
+      }
+
+      struct task_control_block* peerPriorityTask = tcb;
+      do
+      {
+         assert(tcb->config->priority == peerPriorityTask->config->priority);
+
+         peerPriorityTask = peerPriorityTask->nextWithSamePriority;
+      }
+      while (peerPriorityTask != tcb);
+
+      tcb = tcb->nextTaskInTheGreatLink;
+   }
+   while (&idleTask != tcb);
+
+   if (expectTaskInRunningState)
+   {
+      assert(foundTaskInRunningState);
+   }
+
+   assert(tasksVisited == tasksCreated_count);
+
+   /*
+    * check running queue
+    */
+   for (uint32_t ii = 1; ii < runnableTasks.size; ii ++)
+   {
+      uint32_t* priority = runnableTasks.memPool[ii];
+      struct task_control_block* readyTask = (struct task_control_block*) (((uint8_t*) priority) - (offsetof(struct task_control_block, effectivePriority)));
+
+      assert((TS_READY == readyTask->state) || (TS_EXHAUSTED == readyTask->state));
+   }
+
+   /*
+    * check sleeping queue
+    */
+   for (uint32_t ii = 1; ii < sleepingTasks->size; ii ++)
+   {
+      uint32_t* sleepUntil = sleepingTasks->memPool[ii];
+      struct task_control_block* sleepingTask = (struct task_control_block*) (((uint8_t*) sleepUntil) - (offsetof(struct task_control_block, sleepUntil_ticks)));;
+
+      assert(TS_SLEEPING == sleepingTask->state);
+   }
+}
+
+void fx3_initialize(void)
+{
+   tasksCreated_count = 0;
+
+   prq_initialize(&runnableTasks, runnableTasksMemPool, FX3_MAX_TASK_COUNT + 2);
+
+   prq_initialize(&sleepingTasks_0, sleepingTasksMemPool_0, FX3_MAX_TASK_COUNT + 1);
+   prq_initialize(&sleepingTasks_1, sleepingTasksMemPool_1, FX3_MAX_TASK_COUNT + 1);
+   sleepingTasks          = &sleepingTasks_0;
+   sleepingTasksNextEpoch = &sleepingTasks_1;
+
+   firstSleepingTaskToAwake = NULL;
+
+   sleepCycles = 0;
+
+   fx3_createTask(&idleTask, &idleTaskConfig);
+}
+
+void fx3_createTask(struct task_control_block* tcb, const struct task_config* config)
+{
+   tasksCreated_count ++;
+
+   memset(tcb, 0, sizeof(*tcb));
+   memset((void*) config->stackBase, 0, config->stackSize);
+
+   tcb->config = config;
+   tcb->roundRobinSliceLeft_ticks = config->timeSlice_ticks;
+
+   // park the task for now
+   tcb->effectivePriority = config->priority;
+   prq_push(sleepingTasks, &tcb->effectivePriority);
+
+   // set up stack
+   uint32_t* stackPointer = (uint32_t*) (((uint8_t*) config->stackBase + config->stackSize) - 18 * 4);
+   stackPointer[0]  = 0xFFFFFFFDUL;                   // initial EXC_RETURN
+   stackPointer[1]  = 0x3;                            // initial CONTROL : unprivileged, PSP, no FP
+   stackPointer[2]  = 0x0404;       // R4
+   stackPointer[3]  = 0x0505;       // R5
+   stackPointer[4]  = 0x0606;       // R6
+   stackPointer[5]  = 0x0708;       // R7
+   stackPointer[6]  = 0x0808;       // R8
+   stackPointer[7]  = 0x0909;       // R9
+   stackPointer[8]  = 0x0A0A;       // R10
+   stackPointer[9]  = 0x0B0B;       // R11
+   stackPointer[10] = (uint32_t) config->argument;       // R0
+   stackPointer[11] = 0x0101;
+   stackPointer[12] = 0x0B0B;
+   stackPointer[12] = 0x0202;
+   stackPointer[14] = 0x0C0C;
+   stackPointer[15] = 0x0000;
+
+   stackPointer[16] = config->handlerAddress;         // initial Program Counter
+   stackPointer[17] = 0x01000000;                     // initial xPSR
+
+   tcb->stackPointer = stackPointer;
+}
+
+static void setupTasksLinks(void)
+{
+   uint32_t* taskPrio = prq_pop(sleepingTasks);
+   assert(taskPrio);    // we should have a task
+
+   uint32_t lastPrio = *taskPrio;
+
+   struct task_control_block* currentTask = (struct task_control_block*) (((uint8_t*) taskPrio) - (offsetof(struct task_control_block, effectivePriority)));
+   assert(&idleTask != currentTask);
+
+   struct task_control_block* firstTaskAtCurrentPrio             = currentTask;
+   uint32_t                   cumulativeTicksAtCurrentPrio_ticks = currentTask->config->timeSlice_ticks;
+
+   idleTask.nextTaskInTheGreatLink = currentTask;
+   idleTask.nextWithSamePriority   = &idleTask;
+   enqueueReadyTask(currentTask);
+
+   while (! prq_isEmpty(sleepingTasks))
+   {
+      taskPrio = prq_pop(sleepingTasks);
+      struct task_control_block* nextTask = (struct task_control_block*) (((uint8_t*) taskPrio) - (offsetof(struct task_control_block, effectivePriority)));
+
+      if (*taskPrio == lastPrio)
+      {
+         // tasks with shared priorities must have a time slice defined
+         assert(currentTask->config->timeSlice_ticks);
+
+         currentTask->nextWithSamePriority   = nextTask;
+         cumulativeTicksAtCurrentPrio_ticks += nextTask->config->timeSlice_ticks;
+      }
+      else
+      {
+         lastPrio = *taskPrio;
+
+         // distribute the cumulativeTicksAtCurrentPrio_ticks to all tasks at same prio
+         for (struct task_control_block* tcb = firstTaskAtCurrentPrio; tcb; tcb = tcb->nextWithSamePriority)
+         {
+            tcb->roundRobinCumulative_ticks = cumulativeTicksAtCurrentPrio_ticks;
+         }
+
+         // close the link
+         currentTask->nextWithSamePriority  = firstTaskAtCurrentPrio;
+
+         if (currentTask == firstTaskAtCurrentPrio)
+         {
+            // tasks alone on a priority must not have a time slice defined
+            assert(0 == currentTask->config->timeSlice_ticks);
+         }
+
+         firstTaskAtCurrentPrio             = nextTask;
+         cumulativeTicksAtCurrentPrio_ticks = nextTask->config->timeSlice_ticks;
+      }
+
+      currentTask->nextTaskInTheGreatLink = nextTask;
+      currentTask = nextTask;
+      enqueueReadyTask(currentTask);
+   }
+
+   /*
+    * the last task is the idleTask, as it has the lowest priority
+    */
+   assert(&idleTask == currentTask);
+}
+
+void fx3_startMultitasking(void)
+{
+   setupTasksLinks();
+
+   uint32_t* firstTaskPrio = prq_pop(&runnableTasks);
+
+   runningTask = (struct task_control_block*) (((uint8_t*) firstTaskPrio) - (offsetof(struct task_control_block, effectivePriority)));
+   runningTask->state = TS_RUNNING;
+   runningTask->startedRunningAt_ticks = bsp_getTimestamp_ticks();
+
+   uint32_t runningTaskPSP = (uint32_t) (runningTask->stackPointer + 16);
+
+   bsp_startMainClock();
+
+   verifyTaskControlBlocks(true);
+
+   bsp_startMultitasking(runningTaskPSP, runningTask->config->handler, runningTask->config->argument);
+}
+
+static volatile uint32_t lastContextSwitchAt;
+
+void fx3_selectNextRunningTask(void)
+{
+   // no need to disable interrupts, the caller did it for us
+
+   assert(TS_RUNNING != runningTask->state);
+
+   lastContextSwitchAt = bsp_getTimestamp_ticks();
+
+   uint32_t runTime = bsp_computeInterval_ticks(runningTask->startedRunningAt_ticks, lastContextSwitchAt);
+
+   runningTask->totalRunTime_ticks += runTime;
+   runningTask->startedRunningAt_ticks = 0;
+
+   verifyTaskControlBlocks(false);
+
+   uint32_t* nextRunningTaskPriority = prq_pop(&runnableTasks);
+   assert(nextRunningTaskPriority);    // idle task, if nothing else
+
+   nextRunningTask = (struct task_control_block*) (((uint8_t*) nextRunningTaskPriority) - (offsetof(struct task_control_block, effectivePriority)));
+
+   if (TS_EXHAUSTED == nextRunningTask->state)
+   {
+      /*
+       * All tasks with the same priority have exhausted their round-robin ticks:
+       * replenish their ticks, and change their state to runnable and their effective
+       * priorities.
+       * Note that this does not affect their standing in the runnable queue, because
+       * their effective priority is still higher than the next runnable tasks.
+       */
+      nextRunningTask->state                     = TS_READY;
+      nextRunningTask->roundRobinSliceLeft_ticks = nextRunningTask->config->timeSlice_ticks;
+      nextRunningTask->effectivePriority         = computeEffectivePriority(runningTask->state, runningTask->config);
+
+      for (struct task_control_block* tcb = nextRunningTask->nextWithSamePriority; tcb != nextRunningTask; tcb = tcb->nextWithSamePriority)
+      {
+         assert(tcb->config->priority == nextRunningTask->config->priority);
+
+         if (TS_EXHAUSTED == tcb->state)
+         {
+            tcb->state             = TS_READY;
+            tcb->effectivePriority = computeEffectivePriority(runningTask->state, runningTask->config);
+         }
+         else
+         {
+            assert(TS_SLEEPING == tcb->state);
+         }
+         tcb->roundRobinSliceLeft_ticks = nextRunningTask->config->timeSlice_ticks;
+      }
+   }
+
+   if (nextRunningTask->config->timeSlice_ticks)
+   {
+      assert(nextRunningTask->roundRobinSliceLeft_ticks);
+
+      uint32_t roundRobinDeadline = 0;
+      nextRunningTask->roundRobinSliceLeft_ticks --;        // charge task for 'making runnable'
+      bsp_computeWakeUp_ticks(nextRunningTask->roundRobinSliceLeft_ticks, &roundRobinDeadline);
+      bsp_requestRoundRobinSliceTimeout_ticks(roundRobinDeadline);
+   }
+
+   nextRunningTask->state = TS_RUNNING;
+   nextRunningTask->startedRunning_count ++;
+   nextRunningTask->startedRunningAt_ticks = lastContextSwitchAt;
+}
+
+/** Transition this task from running to asleep
+ *
+ */
+void task_sleep_ms(uint32_t timeout_ms)
+{
+   __disable_irq();
+
+   bsp_cancelRoundRobinSliceTimeout();
+   uint32_t now = bsp_getTimestamp_ticks();
+
+   uint32_t runTime = bsp_computeInterval_ticks(runningTask->startedRunningAt_ticks, bsp_getTimestamp_ticks());
+   if (runningTask->config->timeSlice_ticks)
+   {
+      assert(runningTask->roundRobinSliceLeft_ticks >= runTime);
+      runningTask->roundRobinSliceLeft_ticks -= runTime;
+   }
+
+   if (timeout_ms)
+   {
+      const uint32_t sleepDuration_ticks = bsp_getTicksForMS(timeout_ms);
+
+      if (runningTask->config->timeSlice_ticks)
+      {
+         /*
+          * This task will sleep more than a full period of round-robin
+          * scheduling at this priority so replenish its full slice.
+          */
+
+         if (sleepDuration_ticks >= runningTask->roundRobinCumulative_ticks)
+         {
+            runningTask->roundRobinSliceLeft_ticks = runningTask->config->timeSlice_ticks;
+         }
+      }
+
+      runningTask->state             = TS_SLEEPING;
+      runningTask->effectivePriority = 0xffff;
+
+      bool nextEpoch = bsp_computeWakeUp_ticks(sleepDuration_ticks, &runningTask->sleepUntil_ticks);
+      if (nextEpoch)
+      {
+         prq_push(sleepingTasksNextEpoch, &runningTask->sleepUntil_ticks);
+      }
+      else
+      {
+         /*
+          * the sleep will complete this epoch
+          */
+
+         if (0 == firstSleepingTaskToAwake)
+         {
+            /*
+             * there is no other sleeping task
+             */
+
+            assert(prq_isEmpty(sleepingTasks));
+
+            firstSleepingTaskToAwake = runningTask;
+            bsp_wakeUpAt_ticks(runningTask->sleepUntil_ticks);
+         }
+         else
+         {
+            assert(TS_SLEEPING == firstSleepingTaskToAwake->state);
+            if (firstSleepingTaskToAwake->sleepUntil_ticks > runningTask->sleepUntil_ticks)
+            {
+               /*
+                * this new task is sleeping less than the previous task with the shortest sleep
+                */
+
+               prq_push(sleepingTasks, &firstSleepingTaskToAwake->sleepUntil_ticks);
+
+               firstSleepingTaskToAwake = runningTask;
+               bsp_wakeUpAt_ticks(runningTask->sleepUntil_ticks);
+            }
+            else
+            {
+               prq_push(sleepingTasks, &runningTask->sleepUntil_ticks);
+            }
+         }
+      }
+   }
+   else
+   {
+      // just yield
+
+      runningTask->state             = TS_READY;
+      runningTask->effectivePriority = computeEffectivePriority(runningTask->state, runningTask->config);
+      prq_push(&runnableTasks, &runningTask->effectivePriority);
+   }
+
+   bsp_scheduleContextSwitch();
+
+   __enable_irq();
+}
+
+static volatile uint32_t lastWokenUpAt;
+
+void bsp_onWokenUp(void)
+{
+   __disable_irq();
+
+   verifyTaskControlBlocks(true);
+
+   assert(TS_RUNNING == runningTask->state);
+
+   lastWokenUpAt = bsp_getTimestamp_ticks();
+
+   assert(firstSleepingTaskToAwake);
+   assert(firstSleepingTaskToAwake->sleepUntil_ticks <= lastWokenUpAt);
+   assert(TS_SLEEPING == firstSleepingTaskToAwake->state);
+
+   bool runningTaskDethroned = false;
+
+   enqueueReadyTask(firstSleepingTaskToAwake);
+   if (firstSleepingTaskToAwake->effectivePriority < runningTask->effectivePriority)
+   {
+      runningTaskDethroned = true;
+   }
+   firstSleepingTaskToAwake = NULL;
+   /*
+    * done with the task that was waiting to be woken up
+    */
+
+   // who's next?
+   while ((NULL == firstSleepingTaskToAwake) && (! prq_isEmpty(sleepingTasks)))
+   {
+      uint32_t* nextWakeupDeadline = prq_pop(sleepingTasks);
+      assert(nextWakeupDeadline);
+
+      firstSleepingTaskToAwake = (struct task_control_block*) (((uint8_t*) nextWakeupDeadline) - (offsetof(struct task_control_block, sleepUntil_ticks)));
+      assert(TS_SLEEPING == firstSleepingTaskToAwake->state);
+      if (*nextWakeupDeadline <= bsp_getTimestamp_ticks())
+      {
+         enqueueReadyTask(firstSleepingTaskToAwake);
+         if (firstSleepingTaskToAwake->effectivePriority < runningTask->effectivePriority)
+         {
+            runningTaskDethroned = true;
+         }
+         firstSleepingTaskToAwake = NULL;
+      }
+   }
+
+   if (firstSleepingTaskToAwake)
+   {
+      bsp_wakeUpAt_ticks(firstSleepingTaskToAwake->sleepUntil_ticks);
+   }
+   else
+   {
+      bsp_cancelWakeUp();
+   }
+
+   if (runningTaskDethroned)
+   {
+      enqueueReadyTask(runningTask);
+      bsp_scheduleContextSwitchInHandlerMode();
+   }
+
+   __enable_irq();
+}
+
+void bsp_onEpochRollover(void)
+{
+   __disable_irq();
+
+   assert(NULL == firstSleepingTaskToAwake);
+   assert(prq_isEmpty(sleepingTasks));
+
+   // swap queues
+   {
+      struct priority_queue* temp = sleepingTasks;
+      sleepingTasks = sleepingTasksNextEpoch;
+      sleepingTasksNextEpoch = temp;
+   }
+
+   bool runningTaskDethroned = false;
+
+   while ((NULL == firstSleepingTaskToAwake) && (! prq_isEmpty(sleepingTasks)))
+   {
+      uint32_t* nextWakeupDeadline = prq_pop(sleepingTasks);
+      assert(nextWakeupDeadline);
+
+      firstSleepingTaskToAwake = (struct task_control_block*) (((uint8_t*) nextWakeupDeadline) - (offsetof(struct task_control_block, sleepUntil_ticks)));
+      assert(TS_SLEEPING == firstSleepingTaskToAwake->state);
+      if (0 == firstSleepingTaskToAwake->sleepUntil_ticks)
+      {
+         enqueueReadyTask(firstSleepingTaskToAwake);
+         if (firstSleepingTaskToAwake->effectivePriority < runningTask->effectivePriority)
+         {
+            runningTaskDethroned = true;
+         }
+         firstSleepingTaskToAwake = NULL;
+      }
+   }
+
+   if (firstSleepingTaskToAwake)
+   {
+      bsp_wakeUpAt_ticks(firstSleepingTaskToAwake->sleepUntil_ticks);
+   }
+
+   if (runningTaskDethroned)
+   {
+      enqueueReadyTask(runningTask);
+      bsp_scheduleContextSwitchInHandlerMode();
+   }
+
+   __enable_irq();
+}
+
+void bsp_onRoundRobinSliceTimeout(void)
+{
+   __disable_irq();
+
+   assert(TS_RUNNING == runningTask->state);
+
+   runningTask->state                     = TS_EXHAUSTED;
+   runningTask->roundRobinSliceLeft_ticks = 0;
+   runningTask->effectivePriority         = computeEffectivePriority(runningTask->state, runningTask->config);
+   prq_push(&runnableTasks, &runningTask->effectivePriority);
+
+   bsp_scheduleContextSwitchInHandlerMode();
+
+   __enable_irq();
+}
+
