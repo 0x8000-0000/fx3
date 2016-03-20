@@ -11,8 +11,7 @@ TEST_TARGET=$(COMPONENT_NAME)_tests
 CPP_PLATFORM=Gcc
 
 #CFLAGS are set to override malloc and free to get memory leak detection in C programs
-CFLAGS+=-std=c11 -Wall -Werror -g
-CXXFLAGS+=-Wall -Werror -g
+CPPUTEST_CFLAGS+=-std=c11
 #GCOVFLAGS = -fprofile-arcs -ftest-coverage
 
 #SRC_DIRS is a list of source directories that make up the target library
