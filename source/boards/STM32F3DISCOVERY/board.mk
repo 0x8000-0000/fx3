@@ -39,3 +39,5 @@ OBJECTS+=board.o \
 			stm32f3xx_hal_pwr.o \
 			stm32f3xx_hal_rcc.o \
 			stm32f3xx_hal_gpio.o
+
+OPENOCD_BOARD_SCRIPT:=board/stm32f3discovery.cfg
