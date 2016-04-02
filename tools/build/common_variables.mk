@@ -19,6 +19,4 @@ include $(ROOT_DIR)/tools/build/compiler-$(COMPILER).mk
 .SUFFIXES:                       # Delete the default suffixes
 .SUFFIXES: .c .cpp .o .elf .map  # Define our suffix list
 
-.PHONY: artifacts clean
-
-
+OPENOCD_BIN:=$(OPENOCD_HOME)$(SEP)bin$(SEP)openocd.exe -s $(OPENOCD_HOME)$(SEP)share$(SEP)openocd$(SEP)scripts

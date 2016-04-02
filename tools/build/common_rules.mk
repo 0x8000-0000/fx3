@@ -55,11 +55,11 @@ endif
 
 $(OBJDIR)/$(TARGET).img: $(OBJDIR)/$(TARGET).elf
 	echo IMG $@
-	@$(OBJDUMP) -d $< > $@
+	@$(OBJDUMP) $< > $@
 
 $(OBJDIR)/%.img: $(OBJDIR)/%.o
 	echo IMG $@
-	@$(OBJDUMP) -d -S $< > $@
+	@$(OBJDUMP) -S $< > $@
 
 vpath %.c $(C_VPATH)
 
@@ -76,7 +76,9 @@ tags: $(OBJDIR)/$(TARGET).elf
 	@cat $(OBJDIR)/sources.list $(OBJDIR)/headers.list > $(OBJDIR)/tagsinput.list
 	@ctags -a -L $(OBJDIR)/tagsinput.list
 
+run: $(OBJDIR)/$(TARGET).elf
+	$(OPENOCD_BIN) -f $(OPENOCD_BOARD_SCRIPT) -l openocd.log -c "program $< verify reset exit"
 
-
+.PHONY: artifacts clean run
 
 -include $(DEPS)
