@@ -111,4 +111,20 @@ PendSV_Handler:
 .nextRunningTask:
          .word    nextRunningTask
 
+         .thumb_func
+         .type     fx3_startMultitaskingImpl, %function
+         .code     16
+         .global   fx3_startMultitaskingImpl
+fx3_startMultitaskingImpl:
+         .fnstart
+         .cantunwind
 
+         MSR   PSP, R0
+         MOVS  R3, #3
+         MSR   CONTROL, R3
+         ISB
+         MOV   R0, R2
+         BX    R1
+
+         .fnend
+         .size    fx3_startMultitaskingImpl, . - fx3_startMultitaskingImpl

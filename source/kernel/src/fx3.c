@@ -104,7 +104,7 @@ static inline uint32_t computeEffectivePriority(enum task_state state, const str
    return config->priority * 16 + state;
 }
 
-static void enqueueReadyTask(struct task_control_block* tcb)
+void fx3_readyTask(struct task_control_block* tcb)
 {
    assert(tcb->config->timeSlice_ticks >= tcb->roundRobinSliceLeft_ticks);
    tcb->state = TS_READY;
@@ -277,7 +277,7 @@ static void setupTasksLinks(void)
 
    idleTask.nextTaskInTheGreatLink = currentTask;
    idleTask.nextWithSamePriority   = &idleTask;
-   enqueueReadyTask(currentTask);
+   fx3_readyTask(currentTask);
 
    while (! prq_isEmpty(sleepingTasks))
    {
@@ -317,7 +317,7 @@ static void setupTasksLinks(void)
 
       currentTask->nextTaskInTheGreatLink = nextTask;
       currentTask = nextTask;
-      enqueueReadyTask(currentTask);
+      fx3_readyTask(currentTask);
    }
 
    /*
@@ -342,7 +342,7 @@ void fx3_startMultitasking(void)
 
    verifyTaskControlBlocks(true);
 
-   bsp_startMultitasking(runningTaskPSP, runningTask->config->handler, runningTask->config->argument);
+   fx3_startMultitaskingImpl(runningTaskPSP, runningTask->config->handler, runningTask->config->argument);
 }
 
 static volatile uint32_t lastContextSwitchAt;
@@ -420,11 +420,10 @@ void task_sleep_ms(uint32_t timeout_ms)
    __disable_irq();
 
    bsp_cancelRoundRobinSliceTimeout();
-   uint32_t now = bsp_getTimestamp_ticks();
 
-   uint32_t runTime = bsp_computeInterval_ticks(runningTask->startedRunningAt_ticks, bsp_getTimestamp_ticks());
    if (runningTask->config->timeSlice_ticks)
    {
+      uint32_t runTime = bsp_computeInterval_ticks(runningTask->startedRunningAt_ticks, bsp_getTimestamp_ticks());
       assert(runningTask->roundRobinSliceLeft_ticks >= runTime);
       runningTask->roundRobinSliceLeft_ticks -= runTime;
    }
@@ -506,6 +505,17 @@ void task_sleep_ms(uint32_t timeout_ms)
    __enable_irq();
 }
 
+void task_block(enum task_state newState)
+{
+   assert(TS_WAITING_FOR_MUTEX <= newState);
+   assert(TS_WAITING_FOR_EVENT >= newState);
+
+   __disable_irq();
+   runningTask->state = newState;
+   bsp_scheduleContextSwitch();
+   __enable_irq();
+}
+
 static volatile uint32_t lastWokenUpAt;
 
 void bsp_onWokenUp(void)
@@ -524,7 +534,7 @@ void bsp_onWokenUp(void)
 
    bool runningTaskDethroned = false;
 
-   enqueueReadyTask(firstSleepingTaskToAwake);
+   fx3_readyTask(firstSleepingTaskToAwake);
    if (firstSleepingTaskToAwake->effectivePriority < runningTask->effectivePriority)
    {
       runningTaskDethroned = true;
@@ -544,7 +554,7 @@ void bsp_onWokenUp(void)
       assert(TS_SLEEPING == firstSleepingTaskToAwake->state);
       if (*nextWakeupDeadline <= bsp_getTimestamp_ticks())
       {
-         enqueueReadyTask(firstSleepingTaskToAwake);
+         fx3_readyTask(firstSleepingTaskToAwake);
          if (firstSleepingTaskToAwake->effectivePriority < runningTask->effectivePriority)
          {
             runningTaskDethroned = true;
@@ -564,7 +574,7 @@ void bsp_onWokenUp(void)
 
    if (runningTaskDethroned)
    {
-      enqueueReadyTask(runningTask);
+      fx3_readyTask(runningTask);
       bsp_scheduleContextSwitchInHandlerMode();
    }
 
@@ -596,7 +606,7 @@ void bsp_onEpochRollover(void)
       assert(TS_SLEEPING == firstSleepingTaskToAwake->state);
       if (0 == firstSleepingTaskToAwake->sleepUntil_ticks)
       {
-         enqueueReadyTask(firstSleepingTaskToAwake);
+         fx3_readyTask(firstSleepingTaskToAwake);
          if (firstSleepingTaskToAwake->effectivePriority < runningTask->effectivePriority)
          {
             runningTaskDethroned = true;
@@ -612,7 +622,7 @@ void bsp_onEpochRollover(void)
 
    if (runningTaskDethroned)
    {
-      enqueueReadyTask(runningTask);
+      fx3_readyTask(runningTask);
       bsp_scheduleContextSwitchInHandlerMode();
    }
 
@@ -635,3 +645,7 @@ void bsp_onRoundRobinSliceTimeout(void)
    __enable_irq();
 }
 
+struct task_control_block* fx3_getRunningTask(void)
+{
+   return runningTask;
+}
