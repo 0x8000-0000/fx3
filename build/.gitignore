@@ -4,3 +4,4 @@ tags
 Progress.log
 *.slo
 *.xjrf
+openocd.log
