@@ -29,10 +29,10 @@
          .align    2
 
          .thumb_func
-         .type     bit_init, %function
+         .type     bit_initialize, %function
          .code     16
-         .global   bit_init
-bit_init:
+         .global   bit_initialize
+bit_initialize:
          .fnstart
          .cantunwind
 
@@ -44,7 +44,7 @@ bit_init:
          BX       LR
 
          .fnend
-         .size    bit_alloc, . - bit_alloc
+         .size    bit_initialize, . - bit_initialize
 
 
          .thumb_func

@@ -23,6 +23,7 @@ LFLAGS+=-T $(BOARD_DIR)/linker/gcc/STM32F407XX.ld \
 	$(LFLAGS_ARCH)
 
 INCLUDES+=\
+	-I$(ROOT_DIR)/source/arch/inc \
 	-I$(ROOT_DIR)/source/boards/inc \
 	-I$(BOARD_DIR)/inc \
 	-I$(CHIP_DIR)/inc \

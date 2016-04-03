@@ -145,7 +145,7 @@ int main(void)
 
    fx3_initialize();
 
-   bit_init(&availableLEDs, 4);
+   bit_initialize(&availableLEDs, 4);
 
    fx3_createTask(&greenTogglerTCB,  &greenLedTogglerTaskConfig);
    fx3_createTask(&redTogglerTCB,    &redLedTogglerTaskConfig);

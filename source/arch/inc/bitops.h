@@ -29,7 +29,7 @@
  * @param bitMap is the bitmap
  * @param bitCount is the initial number of free bits
  */
-void bit_init(volatile uint32_t* bitMap, uint32_t bitCount);
+void bit_initialize(volatile uint32_t* bitMap, uint32_t bitCount);
 
 /** Allocates a bit if available
  *

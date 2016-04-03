@@ -19,6 +19,7 @@ LFLAGS+=-T $(BOARD_DIR)/linker/gcc/$(MCU).ld \
 	$(LFLAGS_ARCH)
 
 INCLUDES+=\
+	-I$(ROOT_DIR)/source/arch/inc \
 	-I$(ROOT_DIR)/source/boards/inc \
 	-I$(BOARD_DIR)/inc \
 	-I$(CHIP_DIR)/inc \
@@ -44,3 +45,4 @@ OBJECTS+=board.o \
 			stm32f4xx_hal_rcc.o \
 			stm32f4xx_hal_gpio.o \
 			startup_stm32f429xx.o
+
