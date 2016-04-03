@@ -34,13 +34,19 @@ C_VPATH+=$(BOARD_DIR)/src \
 	$(CHIP_DIR)/src \
 	$(STM32F4CUBE)/Drivers/STM32F4xx_HAL_Driver/Src
 
-S_VPATH+=$(BOARD_DIR)/src/gcc
+S_VPATH+= \
+	$(ROOT_DIR)/source/arch/cortex-m4/gcc \
+	$(BOARD_DIR)/src/gcc
 
 OBJECTS+=board.o \
-			system_stm32f4xx.o startup_stm32f407xx.o \
+			bitops.o \
+			system_stm32f4xx.o \
 			stm32_chp.o \
 			stm32f4xx_hal.o \
 			stm32f4xx_hal_cortex.o \
 			stm32f4xx_hal_pwr.o \
 			stm32f4xx_hal_rcc.o \
-			stm32f4xx_hal_gpio.o
+			stm32f4xx_hal_gpio.o \
+			startup_stm32f407xx.o \
+
+OPENOCD_BOARD_SCRIPT:=board/stm32f4discovery.cfg

@@ -18,6 +18,7 @@ LFLAGS+=-T $(BOARD_DIR)/linker/gcc/STM32F303XC.ld \
 	$(LFLAGS_ARCH)
 
 INCLUDES+=\
+	-I$(ROOT_DIR)/source/arch/inc \
 	-I$(ROOT_DIR)/source/boards/inc \
 	-I$(BOARD_DIR)/inc \
 	-I$(CHIP_DIR)/inc \
@@ -29,15 +30,19 @@ C_VPATH+=$(BOARD_DIR)/src \
 	$(CHIP_DIR)/src \
 	$(STM32F3CUBE)/Drivers/STM32F3xx_HAL_Driver/Src
 
-S_VPATH+=$(BOARD_DIR)/src/gcc
+S_VPATH+= \
+	$(ROOT_DIR)/source/arch/cortex-m4/gcc \
+	$(BOARD_DIR)/src/gcc
 
 OBJECTS+=board.o \
-			system_stm32f3xx.o startup_stm32f303xc.o \
+			bitops.o \
+			system_stm32f3xx.o \
 			stm32_chp.o \
 			stm32f3xx_hal.o \
 			stm32f3xx_hal_cortex.o \
 			stm32f3xx_hal_pwr.o \
 			stm32f3xx_hal_rcc.o \
-			stm32f3xx_hal_gpio.o
+			stm32f3xx_hal_gpio.o \
+			startup_stm32f303xc.o
 
 OPENOCD_BOARD_SCRIPT:=board/stm32f3discovery.cfg
