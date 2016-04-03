@@ -8,6 +8,8 @@ include $(ROOT_DIR)/source/kernel/kernel.mk
 
 C_VPATH+=$(ROOT_DIR)/source/apps/blinky
 
+INCLUDES+=-I../common-config
+
 OBJECTS+=blinky.o
 
 include $(ROOT_DIR)/tools/build/common_rules.mk
