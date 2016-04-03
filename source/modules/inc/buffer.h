@@ -1,6 +1,6 @@
 /**
  * @file buffer.h
- * @brief Priority Queue implementation
+ * @brief Buffer allocator definitions
  * @author Florin Iucha <florin@signbit.net>
  * @copyright Apache License, Version 2.0
  */
@@ -34,15 +34,21 @@
 
 struct buffer
 {
-   uint16_t capacity;
-   uint16_t size;
+   struct buffer*    next;
 
-   uint8_t  data[];
+   uint16_t          capacity;
+   uint16_t          size;
+
+   uint8_t           data[];
 };
+
+void buf_initialize(void);
 
 struct buffer* buf_alloc(uint16_t capacity);
 
 void buf_free(struct buffer* buf);
+
+void buf_on_poolExhausted(uint16_t capacityClass);
 
 /** @} */ // Buffers
 
@@ -63,11 +69,11 @@ struct buffer_chain
 
 struct buffer_chain* buf_allocChain(uint16_t capacity);
 
-struct buf_freeChain(struct buffer_chain* chain);
+void buf_freeChain(struct buffer_chain* chain);
 
 uint32_t buf_getChainCapacity(const struct buffer_chain* chain);
 
-struct buffer_chain* buf_clone(struct buffer_chain* chain*);
+struct buffer_chain* buf_clone(struct buffer_chain* chain);
 
 void buf_mem2bufcopy(const uint8_t* source, struct buffer_chain* destination, uint32_t size);
 
