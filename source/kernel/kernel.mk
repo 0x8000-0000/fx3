@@ -7,4 +7,4 @@ INCLUDES+=-I$(ROOT_DIR)/source/kernel/inc \
 			-I$(ROOT_DIR)/source/modules/inc
 
 OBJECTS+=priority_queue.o buffer.o synchronization.o \
-			context_switch.o faults.o fx3.o
+			context_switch.o faults.o fx3.o fx3_cortex.o

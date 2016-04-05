@@ -32,6 +32,8 @@
 
 #include <fx3_config.h>
 
+#include <task_priv.h>
+
 /*
  * A task can be:
  *    * running
@@ -409,7 +411,7 @@ void fx3_selectNextRunningTask(void)
          }
          else
          {
-            assert(TS_SLEEPING == tcb->state);
+            assert((TS_SLEEPING == tcb->state) || (TS_WAITING_FOR_MESSAGE == tcb->state));
          }
          tcb->roundRobinSliceLeft_ticks = nextRunningTask->config->timeSlice_ticks;
       }
@@ -526,7 +528,9 @@ void task_sleep_ms(uint32_t timeout_ms)
 void task_block(enum task_state newState)
 {
    assert(TS_WAITING_FOR_MUTEX <= newState);
-   assert(TS_WAITING_FOR_EVENT >= newState);
+   assert(TS_STATE_COUNT > newState);
+
+   bsp_cancelRoundRobinSliceTimeout();
 
    __disable_irq();
    runningTask->state = newState;
@@ -650,13 +654,14 @@ void bsp_onEpochRollover(void)
 void bsp_onRoundRobinSliceTimeout(void)
 {
    __disable_irq();
+   struct task_control_block* thisTask = runningTask;
 
-   assert(TS_RUNNING == runningTask->state);
+   assert(TS_RUNNING == thisTask->state);
 
-   runningTask->state                     = TS_EXHAUSTED;
-   runningTask->roundRobinSliceLeft_ticks = 0;
-   runningTask->effectivePriority         = computeEffectivePriority(runningTask->state, runningTask->config);
-   prq_push(&runnableTasks, &runningTask->effectivePriority);
+   thisTask->state                     = TS_EXHAUSTED;
+   thisTask->roundRobinSliceLeft_ticks = 0;
+   thisTask->effectivePriority         = computeEffectivePriority(thisTask->state, thisTask->config);
+   prq_push(&runnableTasks, &thisTask->effectivePriority);
 
    bsp_scheduleContextSwitchInHandlerMode();
 
@@ -666,5 +671,80 @@ void bsp_onRoundRobinSliceTimeout(void)
 struct task_control_block* fx3_getRunningTask(void)
 {
    return runningTask;
+}
+
+void fx3_sendMessage(struct task_control_block* tcb, struct buffer* buf)
+{
+   /*
+    * There is an efficient lock-free stack push algorithm for
+    * multiple producers. This leaves us with a list of messages
+    * in the reverse order of insertion.
+    *
+    * The lock-free stack pop is quite involved for the multiple
+    * consumer case, but it is trivial for the single consumer case:
+    * just swap the 'full' incoming queue with the 'empty' todo list.
+    *
+    * Then, we just have to reverse the order of the todo list which
+    * can be done efficiently in linear time.
+    */
+
+   // lock-free push buf into the stack pointed to by tcb->inbox
+   fx3_enqueueMessage((struct buffer**) &tcb->inbox, buf);
+
+   // make tcb runnable if blocked on its queue
+   if (TS_WAITING_FOR_MESSAGE == tcb->state)
+   {
+      __disable_irq();
+      fx3_readyTask(tcb);
+      __enable_irq();
+   }
+}
+
+struct buffer* fx3_waitForMessage(void)
+{
+   struct task_control_block* thisTask = runningTask;
+
+   /*
+    * There is no need to protect messageQueue, this is the only function
+    * that operates on it.
+    */
+
+   while (! thisTask->messageQueue)
+   {
+      // lock-free fetch the inbox variable and simultaneously reset it
+      struct buffer* todo = fx3_flushInbox((struct buffer**) &thisTask->inbox);
+
+      if (todo)
+      {
+         /*
+          * Elements in the todo list are in the reverse order (most
+          * recent element is first). We need to process messages
+          * in FIFO order.
+          *
+          * So, treat both todo and message queue as stacks again,
+          * unstacking from todo and stacking into message queue.
+          *
+          * This will reverse the order, and the first message in the
+          * message queue is the oldest.
+          */
+         while (todo)
+         {
+            struct buffer* next    = todo->next;
+            todo->next             = thisTask->messageQueue;
+            thisTask->messageQueue = todo;
+            todo                   = next;
+         }
+      }
+      else
+      {
+         task_block(TS_WAITING_FOR_MESSAGE);
+      }
+   }
+
+   struct buffer* buf     = thisTask->messageQueue;
+   thisTask->messageQueue = buf->next;
+   buf->next              = NULL;
+
+   return buf;
 }
 

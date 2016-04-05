@@ -1,6 +1,6 @@
 /**
  * @file task.h
- * @brief Task declarations
+ * @brief Public task declarations
  * @author Florin Iucha <florin@signbit.net>
  * @copyright Apache License, Version 2.0
  */
@@ -27,6 +27,8 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+#include <buffer.h>
+
 enum task_state
 {
    TS_UNINITIALIZED,
@@ -38,6 +40,9 @@ enum task_state
    TS_WAITING_FOR_MUTEX,
    TS_WAITING_FOR_SEMAPHORE,
    TS_WAITING_FOR_EVENT,
+   TS_WAITING_FOR_MESSAGE,
+
+   TS_STATE_COUNT,
 };
 
 struct task_config
@@ -96,8 +101,17 @@ struct task_control_block
 
    /// Single-linked list of all tasks, used for periodic verification
    struct task_control_block*    nextTaskInTheGreatLink;
+
+   /// linked list of messages received
+   volatile struct buffer*       inbox;
+
+   // linked list of received messages that are about to be processed
+   struct buffer*                messageQueue;
 };
 
+/**
+ *
+ */
 void fx3_initialize(void);
 
 void fx3_createTask(struct task_control_block* tcb, const struct task_config* config);
@@ -106,17 +120,22 @@ void fx3_createTaskPool(struct task_control_block* tcb, const struct task_config
 
 void fx3_startMultitasking(void);
 
-void fx3_startMultitaskingImpl(uint32_t taskPSP, void (* handler)(const void* arg), const void* arg);
-
-void task_sleep_ticks(uint32_t timeout_ticks);
+void fx3_yield(void);
 
 void task_sleep_ms(uint32_t timeout_ms);
 
-void task_block(enum task_state newState);
+/** Post a message to a task queue
+ *
+ * @param tcb identifies the task
+ * @param buf contains the message; the receiving task takes ownership of the buffer
+ */
+void fx3_sendMessage(struct task_control_block* tcb, struct buffer* buf);
 
-void fx3_readyTask(struct task_control_block* tcb);
-
-struct task_control_block* fx3_getRunningTask(void);
+/** Wait until there is a message in my task queue
+ *
+ * @return the buffer containing the message
+ */
+struct buffer* fx3_waitForMessage(void);
 
 #endif // __FX3_TASK_H__
 
