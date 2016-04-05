@@ -23,6 +23,7 @@
 
 #include <assert.h>
 #include <stddef.h>
+#include <string.h>
 
 #include <buffer.h>
 #include <bitops.h>
@@ -40,11 +41,19 @@ DEFINE_BUFFER(medium, MEDIUM)
 
 DEFINE_BUFFER(large, LARGE)
 
+static uint32_t exhaustedPool[3];
+
 void buf_initialize(void)
 {
    bit_initialize(&smallBufferBitmap , BUF_SMALL_BUF_COUNT);
    bit_initialize(&mediumBufferBitmap, BUF_MEDIUM_BUF_COUNT);
    bit_initialize(&largeBufferBitmap , BUF_LARGE_BUF_COUNT);
+
+   memset((void*) smallBufferHistogram,  0, sizeof(smallBufferHistogram));
+   memset((void*) mediumBufferHistogram, 0, sizeof(mediumBufferHistogram));
+   memset((void*) largeBufferHistogram,  0, sizeof(largeBufferHistogram));
+
+   memset(exhaustedPool, 0, sizeof(exhaustedPool));
 }
 
 struct buffer* buf_alloc(uint16_t capacity)
@@ -61,6 +70,9 @@ struct buffer* buf_alloc(uint16_t capacity)
          buf->next     = NULL;
          buf->capacity = BUF_SMALL_BUF_SIZE;
          buf->size     = 0;
+
+         int usage = BUF_SMALL_BUF_COUNT - __builtin_popcount(smallBufferBitmap);
+         smallBufferHistogram[usage] ++;
       }
       else
       {
@@ -78,6 +90,9 @@ struct buffer* buf_alloc(uint16_t capacity)
          buf->next     = NULL;
          buf->capacity = BUF_MEDIUM_BUF_SIZE;
          buf->size     = 0;
+
+         int usage = BUF_MEDIUM_BUF_COUNT - __builtin_popcount(mediumBufferBitmap);
+         mediumBufferHistogram[usage] ++;
       }
       else
       {
@@ -95,6 +110,9 @@ struct buffer* buf_alloc(uint16_t capacity)
          buf->next     = NULL;
          buf->capacity = BUF_LARGE_BUF_SIZE;
          buf->size     = 0;
+
+         int usage = BUF_LARGE_BUF_COUNT - __builtin_popcount(largeBufferBitmap);
+         largeBufferHistogram[usage] ++;
       }
       else
       {
@@ -139,6 +157,23 @@ void buf_free(struct buffer* buf)
 
 __attribute__((weak)) void buf_on_poolExhausted(uint16_t capacityClass)
 {
-   assert(false);
+   switch (capacityClass)
+   {
+   case BUF_SMALL_BUF_SIZE:
+      exhaustedPool[0] ++;
+      break;
+
+   case BUF_MEDIUM_BUF_SIZE:
+      exhaustedPool[1] ++;
+      break;
+
+   case BUF_LARGE_BUF_SIZE:
+      exhaustedPool[2] ++;
+
+      /* intentional fall-through */
+
+   default:
+      assert(false);
+   }
 }
 
