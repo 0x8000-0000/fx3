@@ -3,6 +3,15 @@
 All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
+## v0.3.0 (2016-04-04)
+
+### Added
+
+   - Lock-free bit allocator
+   - Lock-free buffer allocator
+   - Task-pool helper
+   - Lock-free task message queue
+
 ## v0.2.0 (2016-03-19)
 
 ### Added
