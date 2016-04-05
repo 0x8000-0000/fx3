@@ -223,12 +223,9 @@ void fx3_initialize(void)
    fx3_createTask(&idleTask, &idleTaskConfig);
 }
 
-void fx3_createTask(struct task_control_block* tcb, const struct task_config* config)
+void createTaskImpl(struct task_control_block* tcb, const struct task_config* config, uint32_t* stackPointer, const void* argument)
 {
    tasksCreated_count ++;
-
-   memset(tcb, 0, sizeof(*tcb));
-   memset((void*) config->stackBase, 0, config->stackSize);
 
    tcb->config = config;
    tcb->roundRobinSliceLeft_ticks = config->timeSlice_ticks;
@@ -238,7 +235,6 @@ void fx3_createTask(struct task_control_block* tcb, const struct task_config* co
    prq_push(sleepingTasks, &tcb->effectivePriority);
 
    // set up stack
-   uint32_t* stackPointer = (uint32_t*) (((uint8_t*) config->stackBase + config->stackSize) - 18 * 4);
    stackPointer[0]  = 0xFFFFFFFDUL;                   // initial EXC_RETURN
    stackPointer[1]  = 0x3;                            // initial CONTROL : unprivileged, PSP, no FP
    stackPointer[2]  = 0x0404;       // R4
@@ -249,7 +245,7 @@ void fx3_createTask(struct task_control_block* tcb, const struct task_config* co
    stackPointer[7]  = 0x0909;       // R9
    stackPointer[8]  = 0x0A0A;       // R10
    stackPointer[9]  = 0x0B0B;       // R11
-   stackPointer[10] = (uint32_t) config->argument;       // R0
+   stackPointer[10] = (uint32_t) argument;       // R0
    stackPointer[11] = 0x0101;
    stackPointer[12] = 0x0B0B;
    stackPointer[12] = 0x0202;
@@ -260,6 +256,28 @@ void fx3_createTask(struct task_control_block* tcb, const struct task_config* co
    stackPointer[17] = 0x01000000;                     // initial xPSR
 
    tcb->stackPointer = stackPointer;
+}
+
+void fx3_createTask(struct task_control_block* tcb, const struct task_config* config)
+{
+   memset(tcb, 0, sizeof(*tcb));
+   memset((void*) config->stackBase, 0, config->stackSize);
+
+   uint32_t* stackPointer = (uint32_t*) (((uint8_t*) config->stackBase + config->stackSize) - 18 * 4);
+   createTaskImpl(tcb, config, stackPointer, config->argument);
+}
+
+void fx3_createTaskPool(struct task_control_block* tcb, const struct task_config* config, uint32_t argumentSize, uint32_t poolSize)
+{
+   memset(tcb, 0, sizeof(*tcb) * poolSize);
+   memset((void*) config->stackBase, 0, config->stackSize * poolSize);
+
+   for (uint32_t ii = 0; ii < poolSize; ii ++)
+   {
+      uint32_t thisStackBase = (uint32_t) (config->stackBase) + ii * config->stackSize;
+      uint32_t* stackPointer = (uint32_t*) (thisStackBase + config->stackSize - 18 * 4);
+      createTaskImpl(&tcb[ii], config, stackPointer, ((const uint8_t*) config->argument) + ii * argumentSize);
+   }
 }
 
 static void setupTasksLinks(void)
@@ -649,3 +667,4 @@ struct task_control_block* fx3_getRunningTask(void)
 {
    return runningTask;
 }
+

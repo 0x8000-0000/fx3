@@ -102,6 +102,8 @@ void fx3_initialize(void);
 
 void fx3_createTask(struct task_control_block* tcb, const struct task_config* config);
 
+void fx3_createTaskPool(struct task_control_block* tcb, const struct task_config* config, uint32_t argumentSize, uint32_t poolSize);
+
 void fx3_startMultitasking(void);
 
 void fx3_startMultitaskingImpl(uint32_t taskPSP, void (* handler)(const void* arg), const void* arg);
@@ -111,8 +113,6 @@ void task_sleep_ticks(uint32_t timeout_ticks);
 void task_sleep_ms(uint32_t timeout_ms);
 
 void task_block(enum task_state newState);
-
-void task_yield(void);
 
 void fx3_readyTask(struct task_control_block* tcb);
 
