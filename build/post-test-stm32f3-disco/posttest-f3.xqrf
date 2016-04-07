@@ -170,7 +170,7 @@
        <BuildOptions></BuildOptions>
        <CompArgFile></CompArgFile>
        <CRLF>False</CRLF>
-       <ExternalMakeFileParameters>DEBUG=true VERBOSE=true</ExternalMakeFileParameters>
+       <ExternalMakeFileParameters>DEBUG=true VERBOSE=true WINIDEA=true</ExternalMakeFileParameters>
        <IndFileLocation>0</IndFileLocation>
        <IndirectionFile></IndirectionFile>
        <LinkerOptions></LinkerOptions>

@@ -5,7 +5,7 @@
    <VersionLow>1</VersionLow>
   </REG_HEADER>
   <REG_ROOT>
-   <RegVer>1259397120</RegVer>
+   <RegVer>1259339776</RegVer>
    <Project>
     <CompilerType>0</CompilerType>
     <GlobalOptions>
@@ -158,7 +158,7 @@
        <BuildOptions></BuildOptions>
        <CompArgFile></CompArgFile>
        <CRLF>False</CRLF>
-       <ExternalMakeFileParameters>DEBUG=true VERBOSE=true</ExternalMakeFileParameters>
+       <ExternalMakeFileParameters>DEBUG=true VERBOSE=true WINIDEA=true</ExternalMakeFileParameters>
        <IndFileLocation>0</IndFileLocation>
        <IndirectionFile></IndirectionFile>
        <LinkerOptions></LinkerOptions>

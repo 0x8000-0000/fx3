@@ -13,6 +13,13 @@ else
 	CXXFLAGS+=-g -Og
 	LFLAGS+=-g
 	AFLAGS+=-g
+
+ifeq ($(WINIDEA),true)
+	CFLAGS+=-gdwarf-2 -gstrict-dwarf
+else
+	CFLAGS+=-gdwarf-4 -fvar-tracking -fvar-tracking-assignments
+endif
+
 endif
 
 CFLAGS+=-Wall -std=c11 \
