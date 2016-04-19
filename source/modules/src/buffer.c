@@ -126,23 +126,26 @@ struct buffer* buf_alloc(uint16_t capacity)
 void buf_free(struct buffer* buf)
 {
    volatile uint32_t* bitmap = NULL;
-   uint32_t bufferIndex = 0;
+   ptrdiff_t bufferIndex = 0;
 
    switch (buf->capacity)
    {
    case BUF_SMALL_BUF_SIZE:
       bitmap      = &smallBufferBitmap;
       bufferIndex = (((uint8_t*) buf) - smallBufferPool) / BUF_SMALL_BUF_SIZE;
+      assert(BUF_SMALL_BUF_COUNT > bufferIndex);
       break;
 
    case BUF_MEDIUM_BUF_SIZE:
       bitmap      = &mediumBufferBitmap;
       bufferIndex = (((uint8_t*) buf) - mediumBufferPool) / BUF_MEDIUM_BUF_SIZE;
+      assert(BUF_MEDIUM_BUF_COUNT > bufferIndex);
       break;
 
    case BUF_LARGE_BUF_SIZE:
       bitmap      = &largeBufferBitmap;
       bufferIndex = (((uint8_t*) buf) - largeBufferPool) / BUF_LARGE_BUF_SIZE;
+      assert(BUF_LARGE_BUF_COUNT > bufferIndex);
       break;
 
    default:
@@ -151,7 +154,7 @@ void buf_free(struct buffer* buf)
 
    if (bitmap)
    {
-      bit_free(bitmap, bufferIndex);
+      bit_free(bitmap, (uint32_t) bufferIndex);
    }
 }
 

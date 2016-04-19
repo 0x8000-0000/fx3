@@ -18,7 +18,7 @@ CPPUTEST_CFLAGS+=-std=c11
 #If test files are in these directories, their IMPORT_TEST_GROUPs need
 #to be included in main to force them to be linked in.  By convention
 #put them into an AllTests.h file in each directory
-SRC_DIRS=src
+SRC_DIRS=src ../arch/portable
 
 #TEST_SRC_DIRS is a list of directories including 
 # - A test main (AllTests.cpp by conventin)
@@ -27,7 +27,7 @@ SRC_DIRS=src
 TEST_SRC_DIRS=test
 
 #includes for all compiles	
-INCLUDES=-Iinc -I$(CPPUTEST_HOME)/include
+INCLUDES=-Iinc -I$(CPPUTEST_HOME)/include -I../arch/inc -Iconfig
 
 include $(CPPUTEST_HOME)/build/MakefileWorker.mk
 

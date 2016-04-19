@@ -24,6 +24,8 @@
 #ifndef __BITOPS_H__
 #define __BITOPS_H__
 
+#include <stdint.h>
+
 /** Initializes a bitmap
  *
  * @param bitMap is the bitmap
