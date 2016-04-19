@@ -28,7 +28,7 @@
 #include <buffer.h>
 #include <bitops.h>
 
-#include <fx3_config.h>
+#include <buf_config.h>
 
 #define DEFINE_BUFFER(xx, XX) \
    static volatile uint32_t xx ## BufferBitmap; \
