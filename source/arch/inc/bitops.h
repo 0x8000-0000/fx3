@@ -1,5 +1,5 @@
 /**
- * @file blinky.c
+ * @file bitops.h
  * @brief Bitmap allocator
  * @author Florin Iucha <florin@signbit.net>
  * @copyright Apache License, Version 2.0
