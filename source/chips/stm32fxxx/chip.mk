@@ -1,5 +1,5 @@
 # @file Makefile
-# @brief Build file fragment test app
+# @brief Build file fragment for STM32Fxx chips
 # @author Florin Iucha <florin@signbit.net>
 # @copyright Apache License, Version 2.0
 
@@ -17,7 +17,10 @@
 #
 # This file is part of FX3 RTOS for ARM Cortex-M4
 
-TARGET_APP:=BLINKY_POOL
+CHIP_STM32FXX_DIR:=source/chips/stm32fxxx
 
-include ../../tools/build/common_target.mk
+CHIP_STM32FXX_OBJECTS:=stm32_chp.o
 
+CHIP_STM32FXX_CFLAGS:=$(ARM_CORTEX_M4_CFLAGS)
+CHIP_STM32FXX_AFLAGS:=$(ARM_CORTEX_M4_AFLAGS)
+CHIP_STM32FXX_LFLAGS:=$(ARM_CORTEX_M4_LFLAGS)

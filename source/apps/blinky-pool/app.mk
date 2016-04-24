@@ -1,5 +1,5 @@
 # @file Makefile
-# @brief Build file fragment test app
+# @brief Build file fragment for blinky app
 # @author Florin Iucha <florin@signbit.net>
 # @copyright Apache License, Version 2.0
 
@@ -17,7 +17,9 @@
 #
 # This file is part of FX3 RTOS for ARM Cortex-M4
 
-TARGET_APP:=BLINKY_POOL
+APP_BLINKY_POOL_TARGET:=blinky_pool
 
-include ../../tools/build/common_target.mk
+APP_BLINKY_POOL_OBJECTS:=blinky-pool.o
+
+APP_BLINKY_POOL_C_VPATH:=source/apps/blinky-pool
 

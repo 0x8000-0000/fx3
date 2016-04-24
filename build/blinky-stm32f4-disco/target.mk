@@ -1,5 +1,5 @@
 # @file Makefile
-# @brief Build file fragment test app
+# @brief Build file fragment for blinky app on stm32f4-disco board
 # @author Florin Iucha <florin@signbit.net>
 # @copyright Apache License, Version 2.0
 
@@ -17,7 +17,5 @@
 #
 # This file is part of FX3 RTOS for ARM Cortex-M4
 
-TARGET_APP:=BLINKY_POOL
-
-include ../../tools/build/common_target.mk
+$(eval $(call TARGET_template,BLINKY,STM32F4DISCOVERY))
 

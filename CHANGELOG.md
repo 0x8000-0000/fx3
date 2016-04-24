@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
+## vT.B.D
+
+### Added
+
+   - Refactored build system to use non-recursive makefile
+
 ## v0.3.0 (2016-04-04)
 
 ### Added

@@ -1,5 +1,5 @@
 # @file Makefile
-# @brief Build file fragment test app
+# @brief Build file fragment for ARM Cortex-M4 MCUs
 # @author Florin Iucha <florin@signbit.net>
 # @copyright Apache License, Version 2.0
 
@@ -17,7 +17,9 @@
 #
 # This file is part of FX3 RTOS for ARM Cortex-M4
 
-TARGET_APP:=BLINKY_POOL
+ARM_CORTEX_M4_FLAGS:=-mthumb -mcpu=cortex-m4 -mfpu=fpv4-sp-d16 -mfloat-abi=softfp
 
-include ../../tools/build/common_target.mk
+ARM_CORTEX_M4_CFLAGS:=$(ARM_CORTEX_M4_FLAGS) -D__CORTEX_M4 -D__USE_CMSIS
+ARM_CORTEX_M4_AFLAGS:=$(ARM_CORTEX_M4_FLAGS)
+ARM_CORTEX_M4_LFLAGS:=$(ARM_CORTEX_M4_FLAGS)
 

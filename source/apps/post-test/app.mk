@@ -1,5 +1,5 @@
 # @file Makefile
-# @brief Build file fragment test app
+# @brief Build file fragment for message post test app
 # @author Florin Iucha <florin@signbit.net>
 # @copyright Apache License, Version 2.0
 
@@ -17,7 +17,9 @@
 #
 # This file is part of FX3 RTOS for ARM Cortex-M4
 
-TARGET_APP:=BLINKY_POOL
+APP_POST_TEST_TARGET:=post_test
 
-include ../../tools/build/common_target.mk
+APP_POST_TEST_OBJECTS:=post-test.o
+
+APP_POST_TEST_C_VPATH:=source/apps/post-test
 
