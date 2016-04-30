@@ -76,7 +76,7 @@
      </mbMake>
     </GlobalOptions>
     <Project.0>
-     <DefaultTargetName>blinky-f4 - Debug</DefaultTargetName>
+     <DefaultTargetName>blinky-exp - Debug</DefaultTargetName>
      <FilterName>GCC</FilterName>
      <ProjectName></ProjectName>
      <AdvancedLinkerOptions>
@@ -91,7 +91,7 @@
       <UseExternalFilter>False</UseExternalFilter>
      </AdvancedLinkerOptions>
      <Target.0>
-      <TargetName>blinky-f4 - Debug</TargetName>
+      <TargetName>blinky-exp - Debug</TargetName>
       <FileOptios>
        <AssemblerOptions>$(EDNAME)</AssemblerOptions>
        <CompilerOptions>$(EDNAME)</CompilerOptions>
@@ -141,21 +141,21 @@
         </FileOptios>
        </File.0>
        <File.1>
-        <FileName>$(IRFDIR)..\..\source\boards\STM32F4DISCOVERY\src\gcc\startup_stm32f407xx.S</FileName>
+        <FileName>$(IRFDIR)..\..\source\chips\stm32fxxx\src\stm32_chp.c</FileName>
         <FileOptios>
-         <AssemblerOptions>$(EDNAME)</AssemblerOptions>
+         <CompilerOptions>$(EDNAME)</CompilerOptions>
         </FileOptios>
        </File.1>
        <File.2>
-        <FileName>$(IRFDIR)..\..\source\chips\stm32fxxx\src\stm32_chp.c</FileName>
+        <FileName>$(IRFDIR)..\..\source\boards\EXP-STM32F429II\src\board_exp_stm32f429.c</FileName>
         <FileOptios>
          <CompilerOptions>$(EDNAME)</CompilerOptions>
         </FileOptios>
        </File.2>
        <File.3>
-        <FileName>$(IRFDIR)..\..\source\boards\STM32F4DISCOVERY\src\board_stm32f4disco.c</FileName>
+        <FileName>$(IRFDIR)..\..\source\boards\EXP-STM32F429II\src\gcc\startup_stm32f429xx.S</FileName>
         <FileOptios>
-         <CompilerOptions>$(EDNAME)</CompilerOptions>
+         <AssemblerOptions>$(EDNAME)</AssemblerOptions>
         </FileOptios>
        </File.3>
       </LinkGroup.2>
