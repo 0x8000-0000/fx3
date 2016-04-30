@@ -98,7 +98,7 @@ PendSV_Handler:
          VLDMIAEQ R0!, {S16-S31}             // Restore floating point registers
          MSR      PSP, R0                    // Set PSP to next task
 
-         CPSIE    I                          // re-enalbe interrupts
+         CPSIE    I                          // re-enable interrupts
          ISB
 
          BX       LR                         // Return
