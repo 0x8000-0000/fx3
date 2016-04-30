@@ -5,7 +5,7 @@
    <VersionLow>1</VersionLow>
   </REG_HEADER>
   <REG_ROOT>
-   <RegVer>1259397120</RegVer>
+   <RegVer>1259339776</RegVer>
    <Project>
     <CompilerType>0</CompilerType>
     <GlobalOptions>
@@ -141,19 +141,19 @@
         </FileOptios>
        </File.0>
        <File.1>
-        <FileName>$(IRFDIR)..\..\source\boards\STM32F4DISCOVERY\src\board.c</FileName>
-        <FileOptios>
-         <CompilerOptions>$(EDNAME)</CompilerOptions>
-        </FileOptios>
-       </File.1>
-       <File.2>
         <FileName>$(IRFDIR)..\..\source\boards\STM32F4DISCOVERY\src\gcc\startup_stm32f407xx.S</FileName>
         <FileOptios>
          <AssemblerOptions>$(EDNAME)</AssemblerOptions>
         </FileOptios>
+       </File.1>
+       <File.2>
+        <FileName>$(IRFDIR)..\..\source\chips\stm32fxxx\src\stm32_chp.c</FileName>
+        <FileOptios>
+         <CompilerOptions>$(EDNAME)</CompilerOptions>
+        </FileOptios>
        </File.2>
        <File.3>
-        <FileName>$(IRFDIR)..\..\source\chips\stm32fxxx\src\stm32_chp.c</FileName>
+        <FileName>$(IRFDIR)..\..\source\boards\STM32F4DISCOVERY\src\board_stm32f4disco.c</FileName>
         <FileOptios>
          <CompilerOptions>$(EDNAME)</CompilerOptions>
         </FileOptios>

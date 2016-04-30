@@ -135,19 +135,19 @@
         </FileOptios>
        </File.0>
        <File.1>
-        <FileName>$(IRFDIR)..\..\source\boards\STM32F3DISCOVERY\src\board.c</FileName>
-        <FileOptios>
-         <CompilerOptions>$(EDNAME)</CompilerOptions>
-        </FileOptios>
-       </File.1>
-       <File.2>
         <FileName>$(IRFDIR)..\..\source\boards\STM32F3DISCOVERY\src\gcc\startup_stm32f303xc.S</FileName>
         <FileOptios>
          <AssemblerOptions>$(EDNAME)</AssemblerOptions>
         </FileOptios>
+       </File.1>
+       <File.2>
+        <FileName>$(IRFDIR)..\..\source\chips\stm32fxxx\src\stm32_chp.c</FileName>
+        <FileOptios>
+         <CompilerOptions>$(EDNAME)</CompilerOptions>
+        </FileOptios>
        </File.2>
        <File.3>
-        <FileName>$(IRFDIR)..\..\source\chips\stm32fxxx\src\stm32_chp.c</FileName>
+        <FileName>$(IRFDIR)..\..\source\boards\STM32F3DISCOVERY\src\board_stm32f3disco.c</FileName>
         <FileOptios>
          <CompilerOptions>$(EDNAME)</CompilerOptions>
         </FileOptios>
