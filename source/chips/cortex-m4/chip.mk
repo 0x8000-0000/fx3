@@ -17,7 +17,7 @@
 #
 # This file is part of FX3 RTOS for ARM Cortex-M4
 
-ARM_CORTEX_M4_FLAGS:=-mthumb -mcpu=cortex-m4 -mfpu=fpv4-sp-d16 -mfloat-abi=softfp
+ARM_CORTEX_M4_FLAGS:=-mthumb -mcpu=cortex-m4 -mfpu=fpv4-sp-d16 -mfloat-abi=softfp -mno-unaligned-access
 
 ARM_CORTEX_M4_CFLAGS:=$(ARM_CORTEX_M4_FLAGS) -D__CORTEX_M4 -D__USE_CMSIS
 ARM_CORTEX_M4_AFLAGS:=$(ARM_CORTEX_M4_FLAGS)

@@ -106,6 +106,7 @@ PendSV_Handler:
          .fnend
          .size   PendSV_Handler, . - PendSV_Handler
 
+         .align   4
 .runningTask:
          .word    runningTask
 .nextRunningTask:
