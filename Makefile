@@ -50,12 +50,17 @@ APP_FRAGMENTS:=$(wildcard source/apps/*/app.mk)
 
 include $(APP_FRAGMENTS)
 
+COMPONENT_FRAGMENTS:=$(wildcard source/components/*/component.mk)
+
+include $(COMPONENT_FRAGMENTS)
+
 MYPATH=$(dir $(lastword $(MAKEFILE_LIST)))
 
 #
 # Arguments:
 #    1: Application name
 #    2: Board name
+#    3: Components, separated by space
 #
 define TARGET_template=
 
@@ -68,11 +73,17 @@ TARGETS+=$$($(1)_$(2)_OBJDIR)/$$(APP_$(1)_TARGET).img
 
 DIR_TO_CLEAN+=$$($(1)_$(2)_OBJDIR)
 
-$(1)_$(2)_OBJ_LIST:=$(APP_$(1)_OBJECTS) $(BOARD_$(2)_OBJECTS) $(FX3_OBJECTS)
+$(1)_$(2)_OBJ_LIST:=$(APP_$(1)_OBJECTS) $(BOARD_$(2)_OBJECTS) $(FX3_OBJECTS) $(foreach comp,$(3),$(COMPONENT_$(comp)_OBJECTS))
+
+$(1)_$(2)_PREC_LIST:=$$($(1)_$(2)_OBJ_LIST:.o=.i)
 
 $(1)_$(2)_OBJECTS:=$$(addprefix $$($(1)_$(2)_OBJDIR)/,$$($(1)_$(2)_OBJ_LIST))
 
-$$($(1)_$(2)_OBJECTS): CFLAGS=$$(BOARD_$(2)_CFLAGS) $(COMPILER_CFLAGS) $$(BOARD_$(2)_INCLUDES) $(FX3_INCLUDES) -Ibuild/common-config
+$(1)_$(2)_PREC_FILES:=$$(addprefix $$($(1)_$(2)_OBJDIR)/,$$($(1)_$(2)_PREC_LIST))
+
+$$($(1)_$(2)_OBJECTS): CFLAGS=$(foreach comp,$(3),$$(COMPONENT_$(comp)_CFLAGS)) $$(BOARD_$(2)_CFLAGS) $(COMPILER_CFLAGS) $$(BOARD_$(2)_INCLUDES) $(FX3_INCLUDES) $(foreach comp,$(3),$$(COMPONENT_$(comp)_INCLUDES)) -Ibuild/common-config
+
+$$($(1)_$(2)_PREC_FILES): CFLAGS=$(foreach comp,$(3),$$(COMPONENT_$(comp)_CFLAGS)) $$(BOARD_$(2)_CFLAGS) $(COMPILER_CFLAGS) $$(BOARD_$(2)_INCLUDES) $(FX3_INCLUDES) $(foreach comp,$(3),$$(COMPONENT_$(comp)_INCLUDES)) -Ibuild/common-config
 
 $$($(1)_$(2)_OBJECTS): AFLAGS=$$(BOARD_$(2)_AFLAGS) $(COMPILER_AFLAGS)
 
@@ -107,10 +118,14 @@ else
 	@$(CC) $$(CFLAGS) -c -o $$@ $$<
 endif
 
+$$($(1)_$(2)_OBJDIR)/%.i: %.c | $$($(1)_$(2)_OBJDIR)
+	$(CC) $$(CFLAGS) -E -o $$@ $$<
+
 vpath %.c \
 	$(APP_$(1)_C_VPATH) \
 	$(BOARD_$(2)_C_VPATH) \
-	$(FX3_C_VPATH)
+	$(FX3_C_VPATH) \
+	$(foreach comp,$(3),$(COMPONENT_$(comp)_C_VPATH))
 
 vpath %.S \
 	$(BOARD_$(2)_S_VPATH) \
