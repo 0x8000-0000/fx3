@@ -42,7 +42,58 @@ static volatile struct FaultRegisters
    uint32_t pc;
    uint32_t psr;
 
-   uint32_t cfsr;
+   union
+   {
+      struct
+      {
+         // mmfsr
+         unsigned iaccviol    :1;
+         unsigned daccviol    :1;
+         unsigned reserved0   :1;
+         unsigned munskterr   :1;
+         unsigned mskterr     :1;
+         unsigned reserved1   :2;
+         unsigned mmarvalid   :1;
+
+         // bfsr
+         unsigned ibuserr     :1;
+         unsigned preciserr   :1;
+         unsigned impreciserr :1;
+         unsigned unstkerr    :1;
+         unsigned stkerr      :1;
+         unsigned reserved2   :2;
+         unsigned bfarvalid   :1;
+
+         // ufsr
+         unsigned undefinstr  :1;
+         unsigned invstate    :1;
+         unsigned invpc       :1;
+         unsigned nocp        :1;
+         unsigned reserved3   :4;
+         unsigned unaligned   :1;
+         unsigned divbyzero   :1;
+         unsigned reserved4   :6;
+      };
+      struct
+      {
+         uint8_t mmfsr;
+         uint8_t bfsr;
+         uint16_t ufsr;
+      };
+      uint32_t cfsr;
+   };
+   union
+   {
+      struct
+      {
+         unsigned reserved5 :1;
+         unsigned vecttbl   :1;
+         unsigned reserved6 :28;
+         unsigned forced    :1;
+         unsigned debugevt  :1;
+      };
+      uint32_t hfsr;
+   };
    uint32_t busFaultAddress;
    uint32_t memmanageFaultAddress;
 
@@ -52,8 +103,9 @@ static volatile struct FaultRegisters
 
 void HardFault_Handler_C(const uint32_t* hardfault_args, uint32_t lrValue)
 {
-   faultRegisters.cfsr                  = SCB->CFSR;
-   if ((faultRegisters.cfsr & 0x0080))
+   faultRegisters.hfsr = SCB->HFSR;
+   faultRegisters.cfsr = SCB->CFSR;
+   if (faultRegisters.mmarvalid)
    {
       faultRegisters.memmanageFaultAddress = SCB->MMFAR;
    }
@@ -61,7 +113,7 @@ void HardFault_Handler_C(const uint32_t* hardfault_args, uint32_t lrValue)
    {
       faultRegisters.memmanageFaultAddress = 0;
    }
-   if ((faultRegisters.cfsr & 0x8000))
+   if (faultRegisters.bfarvalid)
    {
       faultRegisters.busFaultAddress = SCB->BFAR;
    }
