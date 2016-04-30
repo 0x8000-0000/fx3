@@ -134,7 +134,7 @@ __isr_vector:
 	.long	TIM8_TRG_COM_TIM14_IRQHandler     /* TIM8 Trigger and Commutation and TIM14 */
 	.long	TIM8_CC_IRQHandler                /* TIM8 Capture Compare         */
 	.long	DMA1_Stream7_IRQHandler           /* DMA1 Stream7                 */
-	.long	FMC_IRQHandler                    /* FMC                          */
+	.long	FSMC_IRQHandler                   /* FSMC                         */
 	.long	SDIO_IRQHandler                   /* SDIO                         */
 	.long	TIM5_IRQHandler                   /* TIM5                         */
 	.long	SPI3_IRQHandler                   /* SPI3                         */
@@ -317,9 +317,26 @@ Reset_Handler:
 
    .align   1
    .thumb_func
-   .type    HardFault_Handler, %function
-HardFault_Handler:
+   .type    Fault_Handler, %function
+Fault_Handler:
    .fnstart
+
+MemManage_Handler:
+   MOV    R2, #4
+   B      CommonHandler
+
+BusFault_Handler:
+   MOV    R2, #5
+   B      CommonHandler
+
+UsageFault_Handler:
+   MOV    R2, #6
+   B      CommonHandler
+
+HardFault_Handler:
+   MOV    R2, #3
+
+CommonHandler:
 
    TST    LR, #4
    ITE    EQ
@@ -329,7 +346,7 @@ HardFault_Handler:
    B      HardFault_Handler_C
 
    .fnend
-   .size    HardFault_Handler, . - HardFault_Handler
+   .size    Fault_Handler, . - Fault_Handler
 
 	.align	1
 	.thumb_func
@@ -349,9 +366,9 @@ Default_Handler:
 
 	def_irq_handler	NMI_Handler
 	/* def_irq_handler	HardFault_Handler */
-	def_irq_handler	MemManage_Handler
-	def_irq_handler	BusFault_Handler
-	def_irq_handler	UsageFault_Handler
+	/* def_irq_handler	MemManage_Handler */
+	/* def_irq_handler	BusFault_Handler */
+	/* def_irq_handler	UsageFault_Handler */
 	def_irq_handler	SVC_Handler
 	def_irq_handler	DebugMon_Handler
 	/* def_irq_handler	PendSV_Handler */
@@ -404,7 +421,7 @@ Default_Handler:
 	def_irq_handler	TIM8_TRG_COM_TIM14_IRQHandler
 	def_irq_handler	TIM8_CC_IRQHandler
 	def_irq_handler	DMA1_Stream7_IRQHandler
-	def_irq_handler	FMC_IRQHandler
+	def_irq_handler	FSMC_IRQHandler
 	def_irq_handler	SDIO_IRQHandler
 	def_irq_handler	TIM5_IRQHandler
 	def_irq_handler	SPI3_IRQHandler

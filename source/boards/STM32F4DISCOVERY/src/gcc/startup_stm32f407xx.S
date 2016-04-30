@@ -308,9 +308,26 @@ Reset_Handler:
 
    .align   1
    .thumb_func
-   .type    HardFault_Handler, %function
-HardFault_Handler:
+   .type    Fault_Handler, %function
+Fault_Handler:
    .fnstart
+
+MemManage_Handler:
+   MOV    R2, #4
+   B      CommonHandler
+
+BusFault_Handler:
+   MOV    R2, #5
+   B      CommonHandler
+
+UsageFault_Handler:
+   MOV    R2, #6
+   B      CommonHandler
+
+HardFault_Handler:
+   MOV    R2, #3
+
+CommonHandler:
 
    TST    LR, #4
    ITE    EQ
@@ -320,7 +337,7 @@ HardFault_Handler:
    B      HardFault_Handler_C
 
    .fnend
-   .size    HardFault_Handler, . - HardFault_Handler
+   .size    Fault_Handler, . - Fault_Handler
 
 	.align	1
 	.thumb_func
@@ -340,9 +357,9 @@ Default_Handler:
 
 	def_irq_handler	NMI_Handler
 	/* def_irq_handler	HardFault_Handler */
-	def_irq_handler	MemManage_Handler
-	def_irq_handler	BusFault_Handler
-	def_irq_handler	UsageFault_Handler
+	/* def_irq_handler	MemManage_Handler */
+	/* def_irq_handler	BusFault_Handler */
+	/* def_irq_handler	UsageFault_Handler */
 	def_irq_handler	SVC_Handler
 	def_irq_handler	DebugMon_Handler
 	/* def_irq_handler	PendSV_Handler */

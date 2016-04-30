@@ -36,6 +36,12 @@ void chp_initialize(void)
    SCB->CCR |= SCB_CCR_STKALIGN_Msk; // Enable double word stack alignment 
    //(recommended in Cortex-M3 r1p1, default in Cortex-M3 r2px and Cortex-M4)
 
+   // enable all fault types
+   SCB->SHCSR |=
+      SCB_SHCSR_USGFAULTENA_Msk |
+      SCB_SHCSR_BUSFAULTENA_Msk |
+      SCB_SHCSR_MEMFAULTENA_Msk;
+
    runningUnderDebugger = (CoreDebug->DHCSR & CoreDebug_DHCSR_C_DEBUGEN_Msk);
 
 #ifdef CAN_SLEEP_UNDER_DEBUGGER
