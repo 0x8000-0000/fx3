@@ -69,11 +69,15 @@ struct task_config
 
 struct task_control_block
 {
-   struct task_control_block*    next;       // used on a waiting list
+   // must be the first element  (synchronization uses it)
+   struct task_control_block*    next;          // used on a waiting list
 
+   // must be the second element (context_switch.S uses it)
    uint32_t*                     stackPointer;
 
    const struct task_config*     config;
+
+   uint32_t                      id;
 
    /// used when on the runnable list
    uint32_t                      effectivePriority;

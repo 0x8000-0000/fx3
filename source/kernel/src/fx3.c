@@ -229,6 +229,8 @@ void createTaskImpl(struct task_control_block* tcb, const struct task_config* co
 {
    tasksCreated_count ++;
 
+   tcb->id = tasksCreated_count;
+
    tcb->config = config;
    tcb->roundRobinSliceLeft_ticks = config->timeSlice_ticks;
 
