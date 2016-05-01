@@ -73,5 +73,19 @@ static inline bool bsp_computeWakeUp_ticks(uint32_t duration_ticks, uint32_t* wa
    return *wakeupAt_ticks < timestamp_ticks;
 }
 
+enum BOARD_LED
+{
+   LED_ID_GREEN,
+   LED_ID_ORANGE,
+   LED_ID_RED,
+   LED_ID_BLUE,
+   LED_ID_GREEN2,
+   LED_ID_ORANGE2,
+   LED_ID_RED2,
+   LED_ID_BLUE2,
+
+   LED_COUNT,
+};
+
 #endif // __BOARD_LOCAL_H__
 

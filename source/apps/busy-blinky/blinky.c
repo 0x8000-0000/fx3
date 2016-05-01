@@ -38,28 +38,28 @@ struct led_toggler
 
 static const struct led_toggler greenToggler =
 {
-   .ledId           = 0,
+   .ledId           = LED_GREEN,
    .initialDelay_ms = 0,
    .period_ms       = SLICE_MS,
 };
 
 static const struct led_toggler orangeToggler =
 {
-   .ledId           = 1,
+   .ledId           = LED_ORANGE,
    .initialDelay_ms = SLICE_MS / 4,
    .period_ms       = SLICE_MS,
 };
 
 static const struct led_toggler redToggler =
 {
-   .ledId           = 2,
+   .ledId           = LED_RED,
    .initialDelay_ms = SLICE_MS / 2,
    .period_ms       = SLICE_MS,
 };
 
 static const struct led_toggler blueToggler =
 {
-   .ledId           = 3,
+   .ledId           = LED_BLUE,
    .initialDelay_ms = 3 * SLICE_MS / 4,
    .period_ms       = SLICE_MS,
 };
@@ -179,9 +179,12 @@ int main(void)
    fx3_initialize();
 
    fx3_createTask(&greenTogglerTCB,  &greenLedTogglerTaskConfig);
-   fx3_createTask(&redTogglerTCB,    &redLedTogglerTaskConfig);
    fx3_createTask(&orangeTogglerTCB, &orangeLedTogglerTaskConfig);
-   fx3_createTask(&blueTogglerTCB,   &blueLedTogglerTaskConfig);
+   if (LED_COUNT > 2)
+   {
+      fx3_createTask(&redTogglerTCB,    &redLedTogglerTaskConfig);
+      fx3_createTask(&blueTogglerTCB,   &blueLedTogglerTaskConfig);
+   }
 
    fx3_startMultitasking();
 

@@ -145,12 +145,15 @@ int main(void)
 
    fx3_initialize();
 
-   bit_initialize(&availableLEDs, 4);
+   bit_initialize(&availableLEDs, LED_COUNT);
 
    fx3_createTask(&greenTogglerTCB,  &greenLedTogglerTaskConfig);
-   fx3_createTask(&redTogglerTCB,    &redLedTogglerTaskConfig);
    fx3_createTask(&orangeTogglerTCB, &orangeLedTogglerTaskConfig);
-   fx3_createTask(&blueTogglerTCB,   &blueLedTogglerTaskConfig);
+   if (LED_COUNT > 2)
+   {
+      fx3_createTask(&redTogglerTCB,    &redLedTogglerTaskConfig);
+      fx3_createTask(&blueTogglerTCB,   &blueLedTogglerTaskConfig);
+   }
 
    fx3_startMultitasking();
 

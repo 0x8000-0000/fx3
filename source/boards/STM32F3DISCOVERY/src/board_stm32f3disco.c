@@ -98,7 +98,7 @@ void bsp_initialize(void)
 
 void bsp_turnOnLED(uint32_t ledId)
 {
-   if (8 > ledId)
+   if (LED_COUNT > ledId)
    {
       HAL_GPIO_WritePin(GPIOE, (GPIO_PIN_8 << ledId), GPIO_PIN_SET);
    }
@@ -106,7 +106,7 @@ void bsp_turnOnLED(uint32_t ledId)
 
 void bsp_turnOffLED(uint32_t ledId)
 {
-   if (8 > ledId)
+   if (LED_COUNT > ledId)
    {
       HAL_GPIO_WritePin(GPIOE, (GPIO_PIN_8 << ledId), GPIO_PIN_RESET);
    }

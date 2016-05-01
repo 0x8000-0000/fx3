@@ -39,28 +39,28 @@ struct led_toggler
 
 static const struct led_toggler greenToggler =
 {
-   .ledId           = 0,
+   .ledId           = LED_ID_GREEN,
    .initialDelay_ms = 0,
    .period_ms       = SLICE_MS,
 };
 
 static const struct led_toggler orangeToggler =
 {
-   .ledId           = 1,
+   .ledId           = LED_ID_ORANGE,
    .initialDelay_ms = SLICE_MS / 4,
    .period_ms       = SLICE_MS,
 };
 
 static const struct led_toggler redToggler =
 {
-   .ledId           = 2,
+   .ledId           = LED_ID_RED,
    .initialDelay_ms = SLICE_MS / 2,
    .period_ms       = SLICE_MS,
 };
 
 static const struct led_toggler blueToggler =
 {
-   .ledId           = 3,
+   .ledId           = LED_ID_BLUE,
    .initialDelay_ms = 3 * SLICE_MS / 4,
    .period_ms       = SLICE_MS,
 };
@@ -118,7 +118,7 @@ static const struct task_config orangeLedTogglerTaskConfig =
    .priority        = 5,
    .stackBase       = blinkOrangeLedStack,
    .stackSize       = sizeof(blinkOrangeLedStack),
-   .timeSlice_ticks = 20,
+   .timeSlice_ticks = 0,
 };
 
 static const struct task_config blueLedTogglerTaskConfig =
@@ -126,15 +126,15 @@ static const struct task_config blueLedTogglerTaskConfig =
    .name            = "Blue",
    .handler         = toggleLed,
    .argument        = &blueToggler,
-   .priority        = 5,
+   .priority        = 6,
    .stackBase       = blinkBlueLedStack,
    .stackSize       = sizeof(blinkBlueLedStack),
-   .timeSlice_ticks = 20,
+   .timeSlice_ticks = 0,
 };
 
 static struct task_control_block greenTogglerTCB;
-static struct task_control_block redTogglerTCB;
 static struct task_control_block orangeTogglerTCB;
+static struct task_control_block redTogglerTCB;
 static struct task_control_block blueTogglerTCB;
 
 int main(void)
@@ -144,9 +144,13 @@ int main(void)
    fx3_initialize();
 
    fx3_createTask(&greenTogglerTCB,  &greenLedTogglerTaskConfig);
-   fx3_createTask(&redTogglerTCB,    &redLedTogglerTaskConfig);
    fx3_createTask(&orangeTogglerTCB, &orangeLedTogglerTaskConfig);
-   fx3_createTask(&blueTogglerTCB,   &blueLedTogglerTaskConfig);
+
+   if (LED_COUNT > 2)
+   {
+      fx3_createTask(&redTogglerTCB,    &redLedTogglerTaskConfig);
+      fx3_createTask(&blueTogglerTCB,   &blueLedTogglerTaskConfig);
+   }
 
    fx3_startMultitasking();
 
