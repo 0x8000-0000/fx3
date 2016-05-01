@@ -24,6 +24,7 @@
 #ifndef __BOARD_H__
 #define __BOARD_H__
 
+#include <stdbool.h>
 #include <stdint.h>
 
 /** @addtogroup BSP
@@ -71,6 +72,8 @@ void bsp_turnOffLED(uint32_t ledId);
 
 //uint32_t bsp_getTimestamp_ticks(void);
 
+uint64_t bsp_getTimestamp64_ticks(void);
+
 /** "Blocks" until wakeup.
  *
  * @param duration how much to sleep, in ticks
@@ -96,15 +99,15 @@ void bsp_cancelWakeUp(void);
 /** Called by BSP on alarm
  *
  */
-void bsp_onWokenUp(void);
+bool bsp_onWokenUp(void);
 
-void bsp_onEpochRollover(void);
+bool bsp_onEpochRollover(void);
 
 void bsp_requestRoundRobinSliceTimeout_ticks(uint32_t timestamp_ticks);
 
 void bsp_cancelRoundRobinSliceTimeout(void);
 
-void bsp_onRoundRobinSliceTimeout(void);
+bool bsp_onRoundRobinSliceTimeout(void);
 
 /**
  * @}

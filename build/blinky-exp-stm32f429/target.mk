@@ -17,5 +17,4 @@
 #
 # This file is part of FX3 RTOS for ARM Cortex-M4
 
-$(eval $(call TARGET_template,BLINKY,EXP_STM32F429II))
-
+$(eval $(call TARGET_template,BLINKY,EXP_STM32F429II,SEGGER_RTT))

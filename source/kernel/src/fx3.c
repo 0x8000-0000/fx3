@@ -34,6 +34,10 @@
 
 #include <task_priv.h>
 
+#ifdef FX3_RTT_TRACE
+#include <SEGGER_SYSVIEW.h>
+#endif
+
 /*
  * A task can be:
  *    * running
@@ -121,6 +125,12 @@ void fx3_readyTask(struct task_control_block* tcb)
    tcb->sleepUntil_ticks  = 0;
    tcb->effectivePriority = computeEffectivePriority(tcb->state, tcb->config);
    prq_push(&runnableTasks, &tcb->effectivePriority);
+#ifdef FX3_RTT_TRACE
+   if (&idleTask != tcb)
+   {
+      SEGGER_SYSVIEW_OnTaskStartReady((uint32_t) tcb);
+   }
+#endif
 }
 
 static uint32_t tasksCreated_count;
@@ -209,7 +219,13 @@ static void verifyTaskControlBlocks(bool expectTaskInRunningState)
 
 void fx3_initialize(void)
 {
+   idleTask.nextTaskInTheGreatLink = 0;
+
    tasksCreated_count = 0;
+
+#ifdef FX3_RTT_TRACE
+   SEGGER_SYSVIEW_Conf();
+#endif
 
    prq_initialize(&runnableTasks, runnableTasksMemPool, FX3_MAX_TASK_COUNT + 2);
 
@@ -223,6 +239,10 @@ void fx3_initialize(void)
    sleepCycles = 0;
 
    fx3_createTask(&idleTask, &idleTaskConfig);
+
+#ifdef FX3_RTT_TRACE
+   SEGGER_SYSVIEW_Conf();
+#endif
 }
 
 void createTaskImpl(struct task_control_block* tcb, const struct task_config* config, uint32_t* stackPointer, const void* argument)
@@ -233,6 +253,23 @@ void createTaskImpl(struct task_control_block* tcb, const struct task_config* co
 
    tcb->config = config;
    tcb->roundRobinSliceLeft_ticks = config->timeSlice_ticks;
+
+#ifdef FX3_RTT_TRACE
+   if (&idleTask != tcb)
+   {
+      SEGGER_SYSVIEW_TASKINFO taskInfo;
+      memset(&taskInfo, 0, sizeof(taskInfo));
+
+      taskInfo.TaskID    = (uint32_t) tcb,
+      taskInfo.sName     = config->name,
+      taskInfo.Prio      = config->priority,
+      taskInfo.StackBase = (uint32_t) stackPointer,
+      taskInfo.StackSize = config->stackSize,
+
+      SEGGER_SYSVIEW_OnTaskCreate((uint32_t) tcb);
+      SEGGER_SYSVIEW_SendTaskInfo(&taskInfo);
+   }
+#endif
 
    // park the task for now
    tcb->effectivePriority = config->priority;
@@ -375,6 +412,13 @@ void fx3_selectNextRunningTask(void)
 
    assert(TS_RUNNING != runningTask->state);
 
+#ifdef FX3_RTT_TRACE
+   if (&idleTask != runningTask)
+   {
+      SEGGER_SYSVIEW_OnTaskStopReady((uint32_t) runningTask, runningTask->state);
+   }
+#endif
+
    lastContextSwitchAt = bsp_getTimestamp_ticks();
 
    uint32_t runTime = bsp_computeInterval_ticks(runningTask->startedRunningAt_ticks, lastContextSwitchAt);
@@ -432,6 +476,16 @@ void fx3_selectNextRunningTask(void)
    nextRunningTask->state = TS_RUNNING;
    nextRunningTask->startedRunning_count ++;
    nextRunningTask->startedRunningAt_ticks = lastContextSwitchAt;
+#ifdef FX3_RTT_TRACE
+   if (&idleTask != nextRunningTask)
+   {
+      SEGGER_SYSVIEW_OnTaskStartExec((uint32_t) nextRunningTask);
+   }
+   else
+   {
+      SEGGER_SYSVIEW_OnIdle();
+   }
+#endif
 }
 
 /** Transition this task from running to asleep
@@ -542,7 +596,7 @@ void task_block(enum task_state newState)
 
 static volatile uint32_t lastWokenUpAt;
 
-void bsp_onWokenUp(void)
+bool bsp_onWokenUp(void)
 {
    __disable_irq();
 
@@ -603,9 +657,11 @@ void bsp_onWokenUp(void)
    }
 
    __enable_irq();
+
+   return runningTaskDethroned;
 }
 
-void bsp_onEpochRollover(void)
+bool bsp_onEpochRollover(void)
 {
    __disable_irq();
 
@@ -651,9 +707,11 @@ void bsp_onEpochRollover(void)
    }
 
    __enable_irq();
+
+   return runningTaskDethroned;
 }
 
-void bsp_onRoundRobinSliceTimeout(void)
+bool bsp_onRoundRobinSliceTimeout(void)
 {
    __disable_irq();
    struct task_control_block* thisTask = runningTask;
@@ -668,6 +726,8 @@ void bsp_onRoundRobinSliceTimeout(void)
    bsp_scheduleContextSwitchInHandlerMode();
 
    __enable_irq();
+
+   return true;
 }
 
 struct task_control_block* fx3_getRunningTask(void)

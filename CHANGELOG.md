@@ -7,6 +7,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Added
 
+   - Added support for [Segger SystemView](https://www.segger.com/systemview.html)
    - Refactored build system to use non-recursive makefile
 
 ## v0.3.0 (2016-04-04)

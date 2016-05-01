@@ -27,15 +27,27 @@
 #include <board_local.h>
 #include <stm32_chp.h>
 
+#ifdef FX3_RTT_TRACE
+#include <SEGGER_SYSVIEW.h>
+#undef CAN_SLEEP_UNDER_DEBUGGER
+#endif
+
 static volatile uint32_t clockUpperBits;
+
+uint64_t bsp_getTimestamp64_ticks(void)
+{
+   uint64_t now = clockUpperBits;
+   now <<= 31;
+   now |= (TIM2->CNT >> 1);
+   return now;
+}
 
 static bool runningUnderDebugger;
 
 void chp_initialize(void)
 {
-   SCB->CCR |= SCB_CCR_STKALIGN_Msk | // Enable double word stack alignment
+   SCB->CCR |= SCB_CCR_STKALIGN_Msk; // Enable double word stack alignment
                                       //(recommended in Cortex-M3 r1p1, default in Cortex-M3 r2px and Cortex-M4)
-               SCB_CCR_UNALIGN_TRP_Msk;
 
    // enable all fault types
    SCB->SHCSR |=
@@ -147,6 +159,8 @@ void bsp_cancelWakeUp(void)
    TIM2->DIER &= ~TIM_DIER_CC1IE;
 }
 
+static volatile uint32_t sysviewOnIdleCalled;
+
 void SVC_Handler_C(uint32_t* svcArgs)
 {
    uint8_t svcNumber = ((uint8_t *) svcArgs[6])[-2]; // Memory[(Stacked PC)-2]
@@ -191,6 +205,12 @@ static volatile uint32_t lastBlinkedAt;
 
 void TIM2_IRQHandler(void)
 {
+#ifdef FX3_RTT_TRACE
+   SEGGER_SYSVIEW_RecordEnterISR();
+#endif
+
+   bool returnToScheduler = false;
+
    bool handled = false;
 
    if ((TIM2->SR & TIM_SR_CC1IF))
@@ -203,7 +223,7 @@ void TIM2_IRQHandler(void)
          // one-shot interrupt; will re-arm when needed
          TIM2->DIER &= ~TIM_DIER_CC1IE;
 
-         bsp_onWokenUp();
+         returnToScheduler |= bsp_onWokenUp();
 
          handled = true;
       }
@@ -219,7 +239,7 @@ void TIM2_IRQHandler(void)
          // one-shot interrupt; will re-arm when needed
          TIM2->DIER &= ~TIM_DIER_CC2IE;
 
-         bsp_onRoundRobinSliceTimeout();
+         returnToScheduler |= bsp_onRoundRobinSliceTimeout();
 
          handled = true;
       }
@@ -233,14 +253,27 @@ void TIM2_IRQHandler(void)
 
          clockUpperBits ++;
 
-         bsp_onEpochRollover();
+         returnToScheduler |= bsp_onEpochRollover();
 
          handled = true;
       }
    }
 
    assert(handled);
+
+#ifdef FX3_RTT_TRACE
+   if (returnToScheduler)
+   {
+      SEGGER_SYSVIEW_RecordExitISRToScheduler();
+   }
+   else
+   {
+      SEGGER_SYSVIEW_RecordExitISR();
+   }
+#endif
 }
+
+#define __SVC(code) __ASM volatile ("svc %0" : : "i" (code) )
 
 void bsp_sleep(void)
 {
@@ -261,8 +294,6 @@ void bsp_sleep(void)
    }
 #endif
 }
-
-#define __SVC(code) __ASM volatile ("svc %0" : : "i" (code) )
 
 void bsp_scheduleContextSwitch(void)
 {
