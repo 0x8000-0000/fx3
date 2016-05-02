@@ -17,5 +17,11 @@
 #
 # This file is part of FX3 RTOS for ARM Cortex-M4
 
-$(eval $(call TARGET_template,BLINKY,STM32F4DISCOVERY))
+#
+# Note: the STM32F4-Disovery board includes a ST/Link v2 debugger.
+# To use Segger SystemView you need to change the firmware on the debugger
+# to Segger for ST-Link: https://www.segger.com/jlink-st-link.html
+#
+
+$(eval $(call TARGET_template,BLINKY,STM32F4DISCOVERY,SEGGER_RTT))
 
