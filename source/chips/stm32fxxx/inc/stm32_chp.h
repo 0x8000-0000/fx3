@@ -1,5 +1,5 @@
 /**
- * @file board.h
+ * @file stm32_chp.h
  * @brief Chip support for STM32F3 and STM32F4 families
  * @author Florin Iucha <florin@signbit.net>
  * @copyright Apache License, Version 2.0

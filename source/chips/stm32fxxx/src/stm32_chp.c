@@ -1,5 +1,5 @@
 /**
- * @file board.h
+ * @file stm32_chp.c
  * @brief Chip support for STM32F3 and STM32F4 families
  * @author Florin Iucha <florin@signbit.net>
  * @copyright Apache License, Version 2.0
@@ -46,8 +46,12 @@ static bool runningUnderDebugger;
 
 void chp_initialize(void)
 {
-   SCB->CCR |= SCB_CCR_STKALIGN_Msk; // Enable double word stack alignment
-                                      //(recommended in Cortex-M3 r1p1, default in Cortex-M3 r2px and Cortex-M4)
+   SCB->CCR |= SCB_CCR_STKALIGN_Msk  // Enable double word stack alignment
+                                     // (recommended in Cortex-M3 r1p1, default in Cortex-M3 r2px and Cortex-M4)
+#ifndef FX3_RTT_TRACE
+               | SCB_CCR_UNALIGN_TRP_Msk   // Segger RTT code has unaligned data access
+#endif
+      ;
 
    // enable all fault types
    SCB->SHCSR |=
@@ -158,8 +162,6 @@ void bsp_cancelWakeUp(void)
 
    TIM2->DIER &= ~TIM_DIER_CC1IE;
 }
-
-static volatile uint32_t sysviewOnIdleCalled;
 
 void SVC_Handler_C(uint32_t* svcArgs)
 {

@@ -1,5 +1,5 @@
 /**
- * @file board.h
+ * @file board_stm32f4disco.c
  * @brief Board Support Package implementation for STM32F4-Discovery
  * @author Florin Iucha <florin@signbit.net>
  * @copyright Apache License, Version 2.0
