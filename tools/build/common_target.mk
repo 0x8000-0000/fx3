@@ -20,7 +20,6 @@
 SPACE:=
 SPACE+=
 TARGET_DIR:=$(lastword $(subst /,$(SPACE),$(CURDIR)))
-#$(info building: $(TARGET_DIR))
 
 ifndef COMPILER
 	COMPILER:=gcc
@@ -39,14 +38,10 @@ APP_FRAGMENTS:=$(wildcard ../../source/apps/*/app.mk)
 
 include $(APP_FRAGMENTS)
 
-#
-# Arguments:
-#    1: Application name
-#    2: Board name
-#
-
-obj.$(COMPILER)$(FLAVOR)/$(APP_$(TARGET_APP)_TARGET).img:
+obj.$(COMPILER)$(FLAVOR)/$(APP_$(TARGET_APP)_TARGET).img: force
 	@$(MAKE) --no-print-directory -C ../.. build/$(TARGET_DIR)/obj.$(COMPILER)$(FLAVOR)/$(APP_$(TARGET_APP)_TARGET).img
 
 clean:
 	@$(RM) -r obj.$(COMPILER)$(FLAVOR)
+
+.PHONY: clean force
