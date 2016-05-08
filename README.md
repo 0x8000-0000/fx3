@@ -16,6 +16,7 @@ You will need:
 * Vendor drivers (in the case of STM32, you'll need the [STM32CubeF4](http://www.st.com/web/en/catalog/tools/PF259243) and [STM32CubeF3](http://www.st.com/web/en/catalog/tools/PF260613) drivers).
 * A compiler: FX3 is developed using [GCC ARM Embedded](https://launchpad.net/gcc-arm-embedded) version 5.2.1 . It can be compiled with [CLANG 3.8](http://clang.llvm.org/) but the GNU ARM linker and support libraries are required.
 * GNU Make version 4.0 or later.
+* [Universal ctags](https://ctags.io/) (There is a bug in the widely-available ctags 5.8, where tags with relative paths are not generated correctly. It works fine for recursive build, but not for the new build.)
 * [CppUTest](https://cpputest.github.io/) . Have CPPUTEST\_HOME environment variable point to it.
 
 The libraries need to be expanded into a folder pointed to by the EMBEDDED environmnent variable. See 'config.mk' for details. The build system is OS agnostic, tested on Windows and Linux.
