@@ -4,6 +4,7 @@
 
 - Mutex
 - Message queue
+- Condition variable
 
 ## Board drivers
 
@@ -15,4 +16,4 @@
 
 ## Boards
 
-- Add support for a NXP/Freescale board
+- Add support for a Silicon Labs/Energy Micro board

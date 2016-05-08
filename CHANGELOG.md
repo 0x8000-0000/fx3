@@ -7,6 +7,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Added
 
+   - Added support for [NXP Kinetis TWR-K64F120M](http://www.nxp.com/products/sensors/accelerometers/3-axis-accelerometers/kinetis-k64-mcu-tower-system-module:TWR-K64F120M)
    - Added support for [Segger SystemView](https://www.segger.com/systemview.html)
    - Refactored build system to use non-recursive makefile
 

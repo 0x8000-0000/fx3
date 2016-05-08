@@ -13,7 +13,9 @@ Apache License, Version 2.0
 
 You will need:
 * ARM CMSIS 4.5
-* Vendor drivers (in the case of STM32, you'll need the [STM32CubeF4](http://www.st.com/web/en/catalog/tools/PF259243) and [STM32CubeF3](http://www.st.com/web/en/catalog/tools/PF260613) drivers).
+* Vendor drivers
+    * For STM32, you'll need the [STM32CubeF4](http://www.st.com/web/en/catalog/tools/PF259243) and [STM32CubeF3](http://www.st.com/web/en/catalog/tools/PF260613) drivers
+    * For Kinetis, you'll nedd the [Kinetis SDK](http://kex.nxp.com/en/welcome)
 * A compiler: FX3 is developed using [GCC ARM Embedded](https://launchpad.net/gcc-arm-embedded) version 5.2.1 . It can be compiled with [CLANG 3.8](http://clang.llvm.org/) but the GNU ARM linker and support libraries are required.
 * GNU Make version 4.0 or later.
 * [Universal ctags](https://ctags.io/) (There is a bug in the widely-available ctags 5.8, where tags with relative paths are not generated correctly. It works fine for recursive build, but not for the new build.)
