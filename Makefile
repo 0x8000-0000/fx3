@@ -105,8 +105,7 @@ $$($(1)_$(2)_OBJDIR)/$$(APP_$(1)_TARGET).img: $$($(1)_$(2)_OBJDIR)/$$(APP_$(1)_T
 $$($(1)_$(2)_OBJDIR)/tags: $$($(1)_$(2)_OBJDIR)/$$(APP_$(1)_TARGET).elf
 	@echo tags $$($(1)_$(2)_OBJDIR)
 	@cat $$($(1)_$(2)_OBJDIR)/*.d | tr " " "\n" | grep ".h$$$$" | sort | uniq > $$($(1)_$(2)_OBJDIR)/headers.list
-	@cat $$($(1)_$(2)_OBJDIR)/sources.list $$($(1)_$(2)_OBJDIR)/headers.list > $$($(1)_$(2)_OBJDIR)/tagsinput.list
-	@ctags -f $$($(1)_$(2)_OBJDIR)/tags -a -L $$($(1)_$(2)_OBJDIR)/tagsinput.list
+	@cat $$($(1)_$(2)_OBJDIR)/sources.list $$($(1)_$(2)_OBJDIR)/headers.list | ctags -f $$(abspath $$@) --tag-relative=no -L -
 
 $$($(1)_$(2)_OBJDIR)/%.o: %.S | $$($(1)_$(2)_OBJDIR)
 ifeq ($(VERBOSE),true)
@@ -123,7 +122,7 @@ else
 	@echo CC $$(<F)
 	@$(CC) $$(CFLAGS) -c -o $$@ $$<
 endif
-	@echo $$(realpath $$<) >> $$($(1)_$(2)_OBJDIR)/sources.list
+	@echo $$< >> $$($(1)_$(2)_OBJDIR)/sources.list
 
 $$($(1)_$(2)_OBJDIR)/%.i: %.c | $$($(1)_$(2)_OBJDIR)
 	$(CC) $$(CFLAGS) -E -o $$@ $$<
