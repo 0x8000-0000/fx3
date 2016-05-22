@@ -84,5 +84,10 @@ enum BOARD_LED
    LED_ID_BLUE,
 };
 
+struct USARTHandle
+{
+   UART_HandleTypeDef huart;
+};
+
 #endif // __BOARD_LOCAL_H__
 

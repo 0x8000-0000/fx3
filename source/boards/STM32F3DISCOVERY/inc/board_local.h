@@ -87,5 +87,10 @@ enum BOARD_LED
    LED_COUNT,
 };
 
+struct USARTHandle
+{
+   UART_HandleTypeDef huart;
+};
+
 #endif // __BOARD_LOCAL_H__
 

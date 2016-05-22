@@ -38,6 +38,8 @@ include config.mk
 
 include source/kernel/kernel.mk
 
+include source/drivers/drivers.mk
+
 CHIP_FRAGMENTS:=$(wildcard source/chips/*/chip.mk)
 
 include $(CHIP_FRAGMENTS)
@@ -81,9 +83,9 @@ $(1)_$(2)_OBJECTS:=$$(addprefix $$($(1)_$(2)_OBJDIR)/,$$($(1)_$(2)_OBJ_LIST))
 
 $(1)_$(2)_PREC_FILES:=$$(addprefix $$($(1)_$(2)_OBJDIR)/,$$($(1)_$(2)_PREC_LIST))
 
-$$($(1)_$(2)_OBJECTS): CFLAGS=$(foreach comp,$(3),$$(COMPONENT_$(comp)_CFLAGS)) $$(BOARD_$(2)_CFLAGS) $(COMPILER_CFLAGS) $$(BOARD_$(2)_INCLUDES) $(FX3_INCLUDES) $(foreach comp,$(3),$$(COMPONENT_$(comp)_INCLUDES)) -Ibuild/common-config
+$$($(1)_$(2)_OBJECTS): CFLAGS=$(foreach comp,$(3),$$(COMPONENT_$(comp)_CFLAGS)) $$(BOARD_$(2)_CFLAGS) $(COMPILER_CFLAGS) $$(BOARD_$(2)_INCLUDES) $(FX3_INCLUDES) $(DRIVERS_INCLUDES) $(foreach comp,$(3),$$(COMPONENT_$(comp)_INCLUDES)) -I$(MYPATH) -Ibuild/common-config
 
-$$($(1)_$(2)_PREC_FILES): CFLAGS=$(foreach comp,$(3),$$(COMPONENT_$(comp)_CFLAGS)) $$(BOARD_$(2)_CFLAGS) $(COMPILER_CFLAGS) $$(BOARD_$(2)_INCLUDES) $(FX3_INCLUDES) $(foreach comp,$(3),$$(COMPONENT_$(comp)_INCLUDES)) -Ibuild/common-config
+$$($(1)_$(2)_PREC_FILES): CFLAGS=$(foreach comp,$(3),$$(COMPONENT_$(comp)_CFLAGS)) $$(BOARD_$(2)_CFLAGS) $(COMPILER_CFLAGS) $$(BOARD_$(2)_INCLUDES) $(FX3_INCLUDES) $(DRIVERS_INCLUDES) $(foreach comp,$(3),$$(COMPONENT_$(comp)_INCLUDES)) -I$(MYPATH) -Ibuild/common-config
 
 $$($(1)_$(2)_OBJECTS): AFLAGS=$$(BOARD_$(2)_AFLAGS) $(COMPILER_AFLAGS)
 
@@ -132,6 +134,7 @@ vpath %.c \
 	$(APP_$(1)_C_VPATH) \
 	$(BOARD_$(2)_C_VPATH) \
 	$(FX3_C_VPATH) \
+	$(DRIVERS_C_VPATH) \
 	$(foreach comp,$(3),$(COMPONENT_$(comp)_C_VPATH))
 
 vpath %.S \

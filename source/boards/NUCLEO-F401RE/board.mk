@@ -32,6 +32,7 @@ BOARD_NUCLEO_F401RE_S_VPATH:=\
 
 BOARD_NUCLEO_F401RE_OBJECTS:=\
 	$(CHIP_STM32FXX_OBJECTS) \
+	stm32f4_driver_usart.o \
 	board_nucleo_f401re.o \
 	bitops.o \
 	system_stm32f4xx.o \
@@ -40,6 +41,9 @@ BOARD_NUCLEO_F401RE_OBJECTS:=\
 	stm32f4xx_hal_pwr.o \
 	stm32f4xx_hal_rcc.o \
 	stm32f4xx_hal_gpio.o \
+	stm32f4xx_hal_spi.o \
+	stm32f4xx_hal_uart.o \
+	stm32f4xx_hal_dma.o \
 	startup_stm32f401xe.o \
 
 #BOARD_NUCLEO_F401RE_OPENOCD_BOARD_SCRIPT:=board/stm32f4discovery.cfg
