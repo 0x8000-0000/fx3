@@ -48,8 +48,13 @@ void chp_initialize(void)
 {
    SCB->CCR |= SCB_CCR_STKALIGN_Msk  // Enable double word stack alignment
                                      // (recommended in Cortex-M3 r1p1, default in Cortex-M3 r2px and Cortex-M4)
+#ifdef UNALIGNED_SUPPORT_DISABLE
 #ifndef FX3_RTT_TRACE
-               | SCB_CCR_UNALIGN_TRP_Msk   // Segger RTT code has unaligned data access
+         /* disable for now, because newlib code for Cortex-M4 is built
+          * assuming unaligned access is acceptable.
+          * | SCB_CCR_UNALIGN_TRP_Msk
+          */
+#endif
 #endif
       ;
 
