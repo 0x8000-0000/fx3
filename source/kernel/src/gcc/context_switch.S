@@ -36,28 +36,6 @@
          .align    2
 
          .thumb_func
-         .type     SVC_Handler, %function
-         .code     16
-         .global   SVC_Handler
-SVC_Handler:
-         .fnstart
-         .cantunwind
-
-         TST      LR, #4   // Extract stack frame location
-         ITE      EQ
-         MRSEQ    R0, MSP
-         MRSNE    R0, PSP
-         LDR      R1, =svcExceptionReturn   // Save current EXC_RETURN
-         STR      LR, [R1]
-         BL       SVC_Handler_C             // Run C part of SVC_Handler
-         LDR      R1, =svcExceptionReturn   // Load new EXC_RETURN
-         LDR      LR, [R1]
-         BX       LR
-
-         .fnend
-         .size    SVC_Handler, . - SVC_Handler
-
-         .thumb_func
          .type     PendSV_Handler, %function
          .code     16
          .global   PendSV_Handler
@@ -121,7 +99,7 @@ fx3_startMultitaskingImpl:
          .cantunwind
 
          MSR   PSP, R0
-         MOVS  R3, #3
+         MOVS  R3, #2
          MSR   CONTROL, R3
          ISB
          MOV   R0, R2

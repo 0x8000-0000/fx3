@@ -1,4 +1,4 @@
-# @file Makefile
+# @file kernel.mk
 # @brief Build file fragment for FX3 kernel
 # @author Florin Iucha <florin@signbit.net>
 # @copyright Apache License, Version 2.0

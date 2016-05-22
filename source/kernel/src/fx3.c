@@ -277,7 +277,7 @@ void createTaskImpl(struct task_control_block* tcb, const struct task_config* co
 
    // set up stack
    stackPointer[0]  = 0xFFFFFFFDUL;                   // initial EXC_RETURN
-   stackPointer[1]  = 0x3;                            // initial CONTROL : unprivileged, PSP, no FP
+   stackPointer[1]  = 0x2;                            // initial CONTROL : privileged, PSP, no FP
    stackPointer[2]  = 0x0404;       // R4
    stackPointer[3]  = 0x0505;       // R5
    stackPointer[4]  = 0x0606;       // R6
@@ -579,6 +579,7 @@ void task_sleep_ms(uint32_t timeout_ms)
    bsp_scheduleContextSwitch();
 
    __enable_irq();
+   __ISB();
 }
 
 void task_block(enum task_state newState)

@@ -901,6 +901,7 @@ ENET_Error_IRQHandler:
     .endm
 
 /* Exception Handlers */
+    def_irq_handler    SVC_Handler
     def_irq_handler    DebugMon_Handler
     def_irq_handler    DMA0_DriverIRQHandler
     def_irq_handler    DMA1_DriverIRQHandler

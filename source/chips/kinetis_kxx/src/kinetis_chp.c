@@ -51,7 +51,7 @@ void chp_initialize(void)
           */
 #endif
 #endif
-      ;
+         ;
 
    // enable all fault types
    SCB->SHCSR |=
@@ -69,48 +69,9 @@ void chp_initialize(void)
 #endif
 }
 
-enum Services
-{
-   SVC_RESET,
-   SVC_SCHEDULE_CONTEXT_SWITCH,
-};
-
 void chp_initializeSystemTimer(uint16_t prescaler)
 {
 }
-
-void SVC_Handler_C(uint32_t* svcArgs)
-{
-   uint8_t svcNumber = ((uint8_t *) svcArgs[6])[-2]; // Memory[(Stacked PC)-2]
-   switch (svcNumber)
-   {
-      case SVC_RESET:
-         NVIC_SystemReset();
-         break;
-
-      case SVC_SCHEDULE_CONTEXT_SWITCH:
-         SCB->ICSR |= SCB_ICSR_PENDSVSET_Msk; // Set PendSV to pending
-         break;
-
-      default:
-         while (1)
-         {
-            // wait
-         }
-         break;
-   }
-}
-
-void bsp_startMultitasking(uint32_t taskPSP, void (* handler)(const void* arg), const void* arg)
-{
-   __set_PSP(taskPSP);        // Set PSP to @R0 of task 0 exception stack frame
-   __set_CONTROL(0x3);        // Switch to use Process Stack, unprivileged state
-   __ISB();                   // Execute ISB after changing CONTROL (architectural recommendation)
-
-   handler(arg);
-}
-
-#define __SVC(code) __ASM volatile ("svc %0" : : "i" (code) )
 
 void bsp_sleep(void)
 {
@@ -134,7 +95,7 @@ void bsp_sleep(void)
 
 void bsp_scheduleContextSwitch(void)
 {
-   __SVC(SVC_SCHEDULE_CONTEXT_SWITCH);
+   SCB->ICSR |= SCB_ICSR_PENDSVSET_Msk; // Set PendSV to pending
 }
 
 __attribute__((noreturn)) void bsp_reset(void)
@@ -144,7 +105,7 @@ __attribute__((noreturn)) void bsp_reset(void)
       __BKPT(0x42);
    }
 
-   __SVC(SVC_RESET);
+   NVIC_SystemReset();
 
    while (1)
    {
