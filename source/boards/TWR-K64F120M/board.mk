@@ -3,6 +3,8 @@
 # http://www.nxp.com/products/sensors/accelerometers/3-axis-accelerometers/kinetis-k64-mcu-tower-system-module:TWR-K64F120M
 #
 
+ifneq ("$(wildcard $(KINETIS_K64))","")
+
 BOARD_TWR_K64F120M_MCU:=CPU_MK64FN1M0VMD12
 
 BOARD_TWR_K64F120M_DIR:=source/boards/TWR-K64F120M
@@ -38,3 +40,7 @@ BOARD_TWR_K64F120M_OBJECTS:=\
 	startup_MK64F12.o \
 	fsl_clock.o \
 	fsl_gpio.o
+
+else
+$(warning KINETIS_K64 does not contain libraries)
+endif

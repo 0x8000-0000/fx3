@@ -66,6 +66,8 @@ MYPATH=$(dir $(lastword $(MAKEFILE_LIST)))
 #
 define TARGET_template=
 
+ifdef BOARD_$(2)_MCU
+
 $(1)_$(2)_OBJDIR:=$(MYPATH)obj.$(COMPILER)$(FLAVOR)
 
 $$($(1)_$(2)_OBJDIR):
@@ -144,7 +146,9 @@ vpath %.S \
 $(1)_$(2)_DEPS:=$$($(1)_$(2)_OBJECTS:.o=.d)
 -include $$($(1)_$(2)_DEPS)
 
-endef
+endif # checking for BOARD definitions
+
+endef # TARGET_template
 
 TARGET_FRAGMENTS:=$(wildcard build/*/target.mk)
 
