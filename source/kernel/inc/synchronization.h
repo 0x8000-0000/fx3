@@ -26,35 +26,36 @@
 
 #include <stdint.h>
 
-struct mutex;
-
-/** Acquire mutex; block this thread until succesful
- *
- * @param mtx is the mutex
+/** @defgroup FX3_Synchronization Synchronization
+ * Synchronization primitives for FX3
+ * @{
  */
-void mutex_acquire(struct mutex* mtx);
-
-/** Releases mutex
- *
- * @param mtx is the mutex
- */
-void mutex_release(struct mutex* mtx);
 
 struct semaphore;
 
-/** Acquire this semaphore; block this thread until succesful
+/** Initialize this semaphore
  *
  * @param sem is the semaphore
- * @return the semaphore count
+ * @param count is the initial state of the semaphore
  */
-uint32_t semaphore_pend(struct semaphore* sem);
+void sem_initialize(struct semaphore* sem, uint32_t count);
 
-/** Releases this semaphore
+/** Wait for this semaphore; block this thread until the
+ * semaphore is signaled
  *
  * @param sem is the semaphore
  * @return the semaphore count
  */
-uint32_t semaphore_post(struct semaphore* sem);
+uint32_t sem_wait(struct semaphore* sem);
+
+/** Signal this semaphore
+ *
+ * @param sem is the semaphore
+ * @return the semaphore count
+ */
+uint32_t sem_signal(struct semaphore* sem);
+
+/** @} */
 
 #endif // __SYNCHRONIZATION_H__
 

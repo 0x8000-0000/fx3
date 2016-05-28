@@ -157,6 +157,9 @@ include $(TARGET_FRAGMENTS)
 artifacts: $(TARGETS)
 
 clean:
-	$(RM) -r $(DIR_TO_CLEAN)
+	$(RM) -r $(DIR_TO_CLEAN) docs/generated
 
-.PHONY: all clean
+docs:
+	@doxygen
+
+.PHONY: all clean artifacts docs

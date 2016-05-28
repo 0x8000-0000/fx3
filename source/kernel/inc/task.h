@@ -29,6 +29,23 @@
 
 #include <buffer.h>
 
+/** @mainpage FX3 RTOS
+ *
+ * @section FX3_General General Facilities
+ *
+ * @section FX3_Synchronization Synchronization
+ *
+ * @section FX3_Communication Inter-task communication
+ *
+ * @section FX3_Memory Memory allocation
+ *
+ */
+
+/** @defgroup FX3 FX3 RTOS
+ * FX3 API
+ * @{
+ */
+
 enum task_state
 {
    TS_UNINITIALIZED,
@@ -67,33 +84,51 @@ struct task_config
    uint8_t        padding[3];
 };
 
+/** Task Control Block
+ *
+ * @note All members are private; the contents of this structure shall
+ * be opaque to the application.
+ */
 struct task_control_block
 {
-   // must be the first element  (synchronization uses it)
+   /** @privatesection */
+
+   /// @note must be the first element  (synchronization uses it)
    struct task_control_block*    next;          // used on a waiting list
 
-   // must be the second element (context_switch.S uses it)
+   /// @note must be the second element (context_switch.S uses it)
    uint32_t*                     stackPointer;
 
+   /// Points to task configuration
    const struct task_config*     config;
 
+   /// Unique identifier for this task
    uint32_t                      id;
 
-   /// used when on the runnable list
+   /** The effective priority of this task
+    * @note used when on the runnable list
+    */
    uint32_t                      effectivePriority;
 
-   /// used when on the sleeping list
+   /** The absolute tick until this task will sleep
+    * @note used when on the sleeping list
+    */
    uint32_t                      sleepUntil_ticks;
 
+   /** Current state for this task
+    */
    enum task_state               state;
 
    uint8_t                       padding[3];
 
+   /** What object is this task waiting on
+    */
    void*                         waitingOn;
 
-   /// the ticks in the round-robin slice
+   /// Number of ticks left in this tasks slice, when running round-robin
    uint32_t                      roundRobinSliceLeft_ticks;
 
+   /// Number of total ticks used to execute this task
    uint32_t                      totalRunTime_ticks;
    uint32_t                      startedRunningAt_ticks;
 
@@ -113,19 +148,30 @@ struct task_control_block
    struct buffer*                messageQueue;
 };
 
-/**
- *
+/** Initialize the FX3 data structures
  */
 void fx3_initialize(void);
 
+/** Define a new task
+ *
+ * @param tcb is the task control block
+ * @param config contains the task configuration
+ */
 void fx3_createTask(struct task_control_block* tcb, const struct task_config* config);
 
 void fx3_createTaskPool(struct task_control_block* tcb, const struct task_config* config, uint32_t argumentSize, uint32_t poolSize);
 
+/** Give control to FX3 to start multitasking
+ * This method does not return.
+ */
 void fx3_startMultitasking(void);
 
 void fx3_yield(void);
 
+/** Put current task to sleep
+ *
+ * @param timeout_ms is the minimum amount of time to sleep
+ */
 void task_sleep_ms(uint32_t timeout_ms);
 
 /** Post a message to a task queue
@@ -140,6 +186,8 @@ void fx3_sendMessage(struct task_control_block* tcb, struct buffer* buf);
  * @return the buffer containing the message
  */
 struct buffer* fx3_waitForMessage(void);
+
+/** @} */
 
 #endif // __FX3_TASK_H__
 
