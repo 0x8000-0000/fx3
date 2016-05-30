@@ -654,7 +654,7 @@ bool bsp_onWokenUp(void)
    if (runningTaskDethroned)
    {
       fx3_readyTask(runningTask);
-      bsp_scheduleContextSwitchInHandlerMode();
+      bsp_scheduleContextSwitch();
    }
 
    __enable_irq();
@@ -704,7 +704,7 @@ bool bsp_onEpochRollover(void)
    if (runningTaskDethroned)
    {
       fx3_readyTask(runningTask);
-      bsp_scheduleContextSwitchInHandlerMode();
+      bsp_scheduleContextSwitch();
    }
 
    __enable_irq();
@@ -724,7 +724,7 @@ bool bsp_onRoundRobinSliceTimeout(void)
    thisTask->effectivePriority         = computeEffectivePriority(thisTask->state, thisTask->config);
    prq_push(&runnableTasks, &thisTask->effectivePriority);
 
-   bsp_scheduleContextSwitchInHandlerMode();
+   bsp_scheduleContextSwitch();
 
    __enable_irq();
 

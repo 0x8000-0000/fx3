@@ -263,11 +263,6 @@ void bsp_sleep(void)
 #endif
 }
 
-void bsp_scheduleContextSwitch(void)
-{
-   SCB->ICSR |= SCB_ICSR_PENDSVSET_Msk; // Set PendSV to pending
-}
-
 __attribute__((noreturn)) void bsp_reset(void)
 {
    if (runningUnderDebugger)

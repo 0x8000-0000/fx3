@@ -59,7 +59,7 @@ static inline uint32_t bsp_computeInterval_ticks(uint32_t start_ticks, uint32_t 
    return duration_ticks;
 }
 
-static inline void bsp_scheduleContextSwitchInHandlerMode(void)
+static inline void bsp_scheduleContextSwitch(void)
 {
    SCB->ICSR |= SCB_ICSR_PENDSVSET_Msk; // Set PendSV to pending
 }

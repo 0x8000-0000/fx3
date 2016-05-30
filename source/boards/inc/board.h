@@ -41,7 +41,7 @@ __attribute__((noreturn)) void bsp_reset(void);
 
 void bsp_startMultitasking(uint32_t firstPSP, void (* firstHandler)(const void* arg), const void* firstArg);
 
-void bsp_scheduleContextSwitch(void);
+//void bsp_scheduleContextSwitch(void);
 
 void bsp_sleep(void);
 
