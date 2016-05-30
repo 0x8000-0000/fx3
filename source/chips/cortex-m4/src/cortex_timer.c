@@ -119,7 +119,15 @@ void bsp_requestRoundRobinSliceTimeout_ticks(uint32_t timestamp_ticks)
 void bsp_cancelRoundRobinSliceTimeout(void)
 {
    roundRobinRequested = false;
-   roundRobinAt_ticks = 0;
+   roundRobinAt_ticks  = 0;
 }
 
+void bsp_disableSystemTimer(void)
+{
+   SysTick->CTRL &= ~SysTick_CTRL_TICKINT_Msk;
+}
 
+void bsp_enableSystemTimer(void)
+{
+   SysTick->CTRL |= SysTick_CTRL_TICKINT_Msk;
+}

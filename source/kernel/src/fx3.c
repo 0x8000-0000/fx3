@@ -496,7 +496,7 @@ void fx3_selectNextRunningTask(void)
  */
 void task_sleep_ms(uint32_t timeout_ms)
 {
-   __disable_irq();
+   bsp_disableSystemTimer();
 
    bsp_cancelRoundRobinSliceTimeout();
 
@@ -579,10 +579,9 @@ void task_sleep_ms(uint32_t timeout_ms)
       prq_push(&runnableTasks, &runningTask->effectivePriority);
    }
 
-   bsp_scheduleContextSwitch();
+   bsp_enableSystemTimer();
 
-   __enable_irq();
-   __ISB();
+   bsp_scheduleContextSwitch();
 }
 
 void task_block(enum task_state newState)
@@ -596,19 +595,20 @@ void task_block(enum task_state newState)
    runningTask->state = newState;
    bsp_scheduleContextSwitch();
    __enable_irq();
+   __ISB();
 }
 
 static volatile uint32_t lastWokenUpAt;
 
 bool bsp_onWokenUp(void)
 {
-   __disable_irq();
-
-   verifyTaskControlBlocks(true);
-
    assert(TS_RUNNING == runningTask->state);
-
    lastWokenUpAt = bsp_getTimestamp_ticks();
+
+   __disable_irq();
+   verifyTaskControlBlocks(true);
+   __enable_irq();
+   __ISB();
 
    assert(fx3Timer.firstSleepingTaskToAwake);
    assert(fx3Timer.firstSleepingTaskToAwake->sleepUntil_ticks <= lastWokenUpAt);
@@ -652,19 +652,18 @@ bool bsp_onWokenUp(void)
 
    if (runningTaskDethroned)
    {
+      __disable_irq();
       fx3_readyTask(runningTask);
       bsp_scheduleContextSwitch();
+      __enable_irq();
+      __ISB();
    }
-
-   __enable_irq();
 
    return runningTaskDethroned;
 }
 
 bool bsp_onEpochRollover(void)
 {
-   __disable_irq();
-
    assert(NULL == fx3Timer.firstSleepingTaskToAwake);
    assert(prq_isEmpty(fx3Timer.sleepingTasks));
 
@@ -702,18 +701,18 @@ bool bsp_onEpochRollover(void)
 
    if (runningTaskDethroned)
    {
+      __disable_irq();
       fx3_readyTask(runningTask);
       bsp_scheduleContextSwitch();
+      __enable_irq();
+      __ISB();
    }
-
-   __enable_irq();
 
    return runningTaskDethroned;
 }
 
 bool bsp_onRoundRobinSliceTimeout(void)
 {
-   __disable_irq();
    struct task_control_block* thisTask = runningTask;
 
    assert(TS_RUNNING == thisTask->state);
@@ -724,8 +723,6 @@ bool bsp_onRoundRobinSliceTimeout(void)
    prq_push(&runnableTasks, &thisTask->effectivePriority);
 
    bsp_scheduleContextSwitch();
-
-   __enable_irq();
 
    return true;
 }
@@ -759,6 +756,7 @@ void fx3_sendMessage(struct task_control_block* tcb, struct buffer* buf)
       __disable_irq();
       fx3_readyTask(tcb);
       __enable_irq();
+      __ISB();
    }
 }
 

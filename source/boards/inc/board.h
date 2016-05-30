@@ -81,16 +81,22 @@ uint64_t bsp_getTimestamp64_ticks(void);
  */
 uint32_t bsp_sleep_ticks(uint32_t duration_ticks);
 
-/** Schedule a wake-up alarm at the given timestamp.
- *
- */
 void bsp_startMainClock(void);
 
-//bool bsp_willWakeupIntervalWrap(uint32_t duration_ticks);
+/** Suspend the system timer interrupts
+ */
+void bsp_disableSystemTimer(void);
 
+/** Start the system timer interrupts
+ */
+void bsp_enableSystemTimer(void);
+
+
+/** Schedule a wake-up alarm at the given timestamp.
+ *
+ * @param timestamp_ticks indicates when to call bsp_onWokenUp
+ */
 void bsp_wakeUpAt_ticks(uint32_t timestamp_ticks);
-
-void bsp_wakeUpAfter_ticks(uint32_t duration_ticks);
 
 /** Called by BSP on alarm
  *

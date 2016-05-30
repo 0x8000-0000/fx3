@@ -140,19 +140,16 @@ void bsp_cancelRoundRobinSliceTimeout(void)
    TIM2->DIER &= ~TIM_DIER_CC2IE;
 }
 
-
-#if 0
-void bsp_wakeUpAfter_ticks(uint32_t duration_ticks)
+void bsp_disableSystemTimer(void)
 {
-   // TODO: handle roll-over
-   wakeupRequestedAt = bsp_getTimestamp_ticks();
-   wakeupRequested   = wakeupRequestedAt + duration_ticks;
-
-   TIM2->CCR1 = wakeupRequested;
-
-   TIM2->DIER |= TIM_DIER_CC1IE;
+   HAL_NVIC_DisableIRQ(TIM2_IRQn);
 }
-#endif
+
+void bsp_enableSystemTimer(void)
+{
+   HAL_NVIC_EnableIRQ(TIM2_IRQn);
+}
+
 
 /*
  * Used by ST HAL only
