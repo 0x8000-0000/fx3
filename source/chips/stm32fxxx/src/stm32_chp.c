@@ -154,14 +154,6 @@ void bsp_wakeUpAfter_ticks(uint32_t duration_ticks)
 }
 #endif
 
-void bsp_cancelWakeUp(void)
-{
-   wakeupRequestedAt = 0;
-   wakeupRequested   = 0;
-
-   TIM2->DIER &= ~TIM_DIER_CC1IE;
-}
-
 /*
  * Used by ST HAL only
  */
@@ -192,6 +184,8 @@ void TIM2_IRQHandler(void)
 
          // one-shot interrupt; will re-arm when needed
          TIM2->DIER &= ~TIM_DIER_CC1IE;
+         wakeupRequestedAt = 0;
+         wakeupRequested   = 0;
 
          returnToScheduler |= bsp_onWokenUp();
 

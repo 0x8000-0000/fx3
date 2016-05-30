@@ -92,10 +92,6 @@ void bsp_wakeUpAt_ticks(uint32_t timestamp_ticks);
 
 void bsp_wakeUpAfter_ticks(uint32_t duration_ticks);
 
-/** Cancels a pending wake-up alarm.
- */
-void bsp_cancelWakeUp(void);
-
 /** Called by BSP on alarm
  *
  */

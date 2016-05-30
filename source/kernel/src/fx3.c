@@ -649,10 +649,6 @@ bool bsp_onWokenUp(void)
    {
       bsp_wakeUpAt_ticks(fx3Timer.firstSleepingTaskToAwake->sleepUntil_ticks);
    }
-   else
-   {
-      bsp_cancelWakeUp();
-   }
 
    if (runningTaskDethroned)
    {

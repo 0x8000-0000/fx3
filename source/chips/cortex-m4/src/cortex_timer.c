@@ -60,7 +60,7 @@ void SysTick_Handler(void)
       {
          wakeupRequested = false;
          wakeupAt_ticks  = 0;
-         
+
          returnToScheduler |= bsp_onWokenUp();
       }
    }
@@ -71,7 +71,7 @@ void SysTick_Handler(void)
       {
          roundRobinRequested = false;
          roundRobinAt_ticks  = 0;
-         
+
          returnToScheduler |= bsp_onRoundRobinSliceTimeout();
       }
    }
@@ -108,12 +108,6 @@ void bsp_wakeUpAt_ticks(uint32_t timestamp_ticks)
 {
    wakeupAt_ticks  = timestamp_ticks;
    wakeupRequested = true;
-}
-
-void bsp_cancelWakeUp(void)
-{
-   wakeupRequested = false;
-   wakeupAt_ticks  = 0;
 }
 
 void bsp_requestRoundRobinSliceTimeout_ticks(uint32_t timestamp_ticks)
