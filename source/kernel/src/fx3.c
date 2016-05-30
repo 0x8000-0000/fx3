@@ -48,21 +48,24 @@
 struct task_control_block* runningTask;
 struct task_control_block* nextRunningTask;
 
-struct task_control_block* firstSleepingTaskToAwake;
-
-// +1 for the heap and +1 for the idle task
+// +1 for the heap header and +1 for the idle task
 static uint32_t* runnableTasksMemPool[FX3_MAX_TASK_COUNT + 2];
 static struct priority_queue runnableTasks;
 
-// +1 for the heap and +1 for the idle task
-static uint32_t* sleepingTasksMemPool_0[FX3_MAX_TASK_COUNT + 2];
-static struct priority_queue sleepingTasks_0;
-// +1 for the heap and +1 for the idle task
-static uint32_t* sleepingTasksMemPool_1[FX3_MAX_TASK_COUNT + 2];
-static struct priority_queue sleepingTasks_1;
+static struct fx3_timer
+{
+   struct task_control_block* firstSleepingTaskToAwake;
 
-static struct priority_queue* sleepingTasks;
-static struct priority_queue* sleepingTasksNextEpoch;
+   // +1 for the heap header and +1 for the idle task
+   uint32_t* sleepingTasksMemPool_0[FX3_MAX_TASK_COUNT + 2];
+   struct priority_queue sleepingTasks_0;
+   // +1 for the heap header and +1 for the idle task
+   uint32_t* sleepingTasksMemPool_1[FX3_MAX_TASK_COUNT + 2];
+   struct priority_queue sleepingTasks_1;
+
+   struct priority_queue* sleepingTasks;
+   struct priority_queue* sleepingTasksNextEpoch;
+}  fx3Timer;
 
 /*
  *
@@ -208,9 +211,9 @@ static void verifyTaskControlBlocks(bool expectTaskInRunningState)
    /*
     * check sleeping queue
     */
-   for (uint32_t ii = 1; ii < sleepingTasks->size; ii ++)
+   for (uint32_t ii = 1; ii < fx3Timer.sleepingTasks->size; ii ++)
    {
-      uint32_t* sleepUntil = sleepingTasks->memPool[ii];
+      uint32_t* sleepUntil = fx3Timer.sleepingTasks->memPool[ii];
       struct task_control_block* sleepingTask = (struct task_control_block*) (((uint8_t*) sleepUntil) - (offsetof(struct task_control_block, sleepUntil_ticks)));;
 
       assert(TS_SLEEPING == sleepingTask->state);
@@ -229,12 +232,12 @@ void fx3_initialize(void)
 
    prq_initialize(&runnableTasks, runnableTasksMemPool, FX3_MAX_TASK_COUNT + 2);
 
-   prq_initialize(&sleepingTasks_0, sleepingTasksMemPool_0, FX3_MAX_TASK_COUNT + 1);
-   prq_initialize(&sleepingTasks_1, sleepingTasksMemPool_1, FX3_MAX_TASK_COUNT + 1);
-   sleepingTasks          = &sleepingTasks_0;
-   sleepingTasksNextEpoch = &sleepingTasks_1;
+   prq_initialize(&fx3Timer.sleepingTasks_0, fx3Timer.sleepingTasksMemPool_0, FX3_MAX_TASK_COUNT + 1);
+   prq_initialize(&fx3Timer.sleepingTasks_1, fx3Timer.sleepingTasksMemPool_1, FX3_MAX_TASK_COUNT + 1);
+   fx3Timer.sleepingTasks          = &fx3Timer.sleepingTasks_0;
+   fx3Timer.sleepingTasksNextEpoch = &fx3Timer.sleepingTasks_1;
 
-   firstSleepingTaskToAwake = NULL;
+   fx3Timer.firstSleepingTaskToAwake = NULL;
 
    sleepCycles = 0;
 
@@ -273,7 +276,7 @@ void createTaskImpl(struct task_control_block* tcb, const struct task_config* co
 
    // park the task for now
    tcb->effectivePriority = config->priority;
-   prq_push(sleepingTasks, &tcb->effectivePriority);
+   prq_push(fx3Timer.sleepingTasks, &tcb->effectivePriority);
 
    // set up stack
    stackPointer[0]  = 0xFFFFFFFDUL;                   // initial EXC_RETURN
@@ -323,7 +326,7 @@ void fx3_createTaskPool(struct task_control_block* tcb, const struct task_config
 
 static void setupTasksLinks(void)
 {
-   uint32_t* taskPrio = prq_pop(sleepingTasks);
+   uint32_t* taskPrio = prq_pop(fx3Timer.sleepingTasks);
    assert(taskPrio);    // we should have a task
 
    uint32_t lastPrio = *taskPrio;
@@ -338,9 +341,9 @@ static void setupTasksLinks(void)
    idleTask.nextWithSamePriority   = &idleTask;
    fx3_readyTask(currentTask);
 
-   while (! prq_isEmpty(sleepingTasks))
+   while (! prq_isEmpty(fx3Timer.sleepingTasks))
    {
-      taskPrio = prq_pop(sleepingTasks);
+      taskPrio = prq_pop(fx3Timer.sleepingTasks);
       struct task_control_block* nextTask = (struct task_control_block*) (((uint8_t*) taskPrio) - (offsetof(struct task_control_block, effectivePriority)));
 
       if (*taskPrio == lastPrio)
@@ -527,7 +530,7 @@ void task_sleep_ms(uint32_t timeout_ms)
       bool nextEpoch = bsp_computeWakeUp_ticks(sleepDuration_ticks, &runningTask->sleepUntil_ticks);
       if (nextEpoch)
       {
-         prq_push(sleepingTasksNextEpoch, &runningTask->sleepUntil_ticks);
+         prq_push(fx3Timer.sleepingTasksNextEpoch, &runningTask->sleepUntil_ticks);
       }
       else
       {
@@ -535,34 +538,34 @@ void task_sleep_ms(uint32_t timeout_ms)
           * the sleep will complete this epoch
           */
 
-         if (0 == firstSleepingTaskToAwake)
+         if (0 == fx3Timer.firstSleepingTaskToAwake)
          {
             /*
              * there is no other sleeping task
              */
 
-            assert(prq_isEmpty(sleepingTasks));
+            assert(prq_isEmpty(fx3Timer.sleepingTasks));
 
-            firstSleepingTaskToAwake = runningTask;
+            fx3Timer.firstSleepingTaskToAwake = runningTask;
             bsp_wakeUpAt_ticks(runningTask->sleepUntil_ticks);
          }
          else
          {
-            assert(TS_SLEEPING == firstSleepingTaskToAwake->state);
-            if (firstSleepingTaskToAwake->sleepUntil_ticks > runningTask->sleepUntil_ticks)
+            assert(TS_SLEEPING == fx3Timer.firstSleepingTaskToAwake->state);
+            if (fx3Timer.firstSleepingTaskToAwake->sleepUntil_ticks > runningTask->sleepUntil_ticks)
             {
                /*
                 * this new task is sleeping less than the previous task with the shortest sleep
                 */
 
-               prq_push(sleepingTasks, &firstSleepingTaskToAwake->sleepUntil_ticks);
+               prq_push(fx3Timer.sleepingTasks, &fx3Timer.firstSleepingTaskToAwake->sleepUntil_ticks);
 
-               firstSleepingTaskToAwake = runningTask;
+               fx3Timer.firstSleepingTaskToAwake = runningTask;
                bsp_wakeUpAt_ticks(runningTask->sleepUntil_ticks);
             }
             else
             {
-               prq_push(sleepingTasks, &runningTask->sleepUntil_ticks);
+               prq_push(fx3Timer.sleepingTasks, &runningTask->sleepUntil_ticks);
             }
          }
       }
@@ -607,44 +610,44 @@ bool bsp_onWokenUp(void)
 
    lastWokenUpAt = bsp_getTimestamp_ticks();
 
-   assert(firstSleepingTaskToAwake);
-   assert(firstSleepingTaskToAwake->sleepUntil_ticks <= lastWokenUpAt);
-   assert(TS_SLEEPING == firstSleepingTaskToAwake->state);
+   assert(fx3Timer.firstSleepingTaskToAwake);
+   assert(fx3Timer.firstSleepingTaskToAwake->sleepUntil_ticks <= lastWokenUpAt);
+   assert(TS_SLEEPING == fx3Timer.firstSleepingTaskToAwake->state);
 
    bool runningTaskDethroned = false;
 
-   fx3_readyTask(firstSleepingTaskToAwake);
-   if (firstSleepingTaskToAwake->effectivePriority < runningTask->effectivePriority)
+   fx3_readyTask(fx3Timer.firstSleepingTaskToAwake);
+   if (fx3Timer.firstSleepingTaskToAwake->effectivePriority < runningTask->effectivePriority)
    {
       runningTaskDethroned = true;
    }
-   firstSleepingTaskToAwake = NULL;
+   fx3Timer.firstSleepingTaskToAwake = NULL;
    /*
     * done with the task that was waiting to be woken up
     */
 
    // who's next?
-   while ((NULL == firstSleepingTaskToAwake) && (! prq_isEmpty(sleepingTasks)))
+   while ((NULL == fx3Timer.firstSleepingTaskToAwake) && (! prq_isEmpty(fx3Timer.sleepingTasks)))
    {
-      uint32_t* nextWakeupDeadline = prq_pop(sleepingTasks);
+      uint32_t* nextWakeupDeadline = prq_pop(fx3Timer.sleepingTasks);
       assert(nextWakeupDeadline);
 
-      firstSleepingTaskToAwake = (struct task_control_block*) (((uint8_t*) nextWakeupDeadline) - (offsetof(struct task_control_block, sleepUntil_ticks)));
-      assert(TS_SLEEPING == firstSleepingTaskToAwake->state);
+      fx3Timer.firstSleepingTaskToAwake = (struct task_control_block*) (((uint8_t*) nextWakeupDeadline) - (offsetof(struct task_control_block, sleepUntil_ticks)));
+      assert(TS_SLEEPING == fx3Timer.firstSleepingTaskToAwake->state);
       if (*nextWakeupDeadline <= bsp_getTimestamp_ticks())
       {
-         fx3_readyTask(firstSleepingTaskToAwake);
-         if (firstSleepingTaskToAwake->effectivePriority < runningTask->effectivePriority)
+         fx3_readyTask(fx3Timer.firstSleepingTaskToAwake);
+         if (fx3Timer.firstSleepingTaskToAwake->effectivePriority < runningTask->effectivePriority)
          {
             runningTaskDethroned = true;
          }
-         firstSleepingTaskToAwake = NULL;
+         fx3Timer.firstSleepingTaskToAwake = NULL;
       }
    }
 
-   if (firstSleepingTaskToAwake)
+   if (fx3Timer.firstSleepingTaskToAwake)
    {
-      bsp_wakeUpAt_ticks(firstSleepingTaskToAwake->sleepUntil_ticks);
+      bsp_wakeUpAt_ticks(fx3Timer.firstSleepingTaskToAwake->sleepUntil_ticks);
    }
    else
    {
@@ -666,39 +669,39 @@ bool bsp_onEpochRollover(void)
 {
    __disable_irq();
 
-   assert(NULL == firstSleepingTaskToAwake);
-   assert(prq_isEmpty(sleepingTasks));
+   assert(NULL == fx3Timer.firstSleepingTaskToAwake);
+   assert(prq_isEmpty(fx3Timer.sleepingTasks));
 
    // swap queues
    {
-      struct priority_queue* temp = sleepingTasks;
-      sleepingTasks = sleepingTasksNextEpoch;
-      sleepingTasksNextEpoch = temp;
+      struct priority_queue* temp = fx3Timer.sleepingTasks;
+      fx3Timer.sleepingTasks = fx3Timer.sleepingTasksNextEpoch;
+      fx3Timer.sleepingTasksNextEpoch = temp;
    }
 
    bool runningTaskDethroned = false;
 
-   while ((NULL == firstSleepingTaskToAwake) && (! prq_isEmpty(sleepingTasks)))
+   while ((NULL == fx3Timer.firstSleepingTaskToAwake) && (! prq_isEmpty(fx3Timer.sleepingTasks)))
    {
-      uint32_t* nextWakeupDeadline = prq_pop(sleepingTasks);
+      uint32_t* nextWakeupDeadline = prq_pop(fx3Timer.sleepingTasks);
       assert(nextWakeupDeadline);
 
-      firstSleepingTaskToAwake = (struct task_control_block*) (((uint8_t*) nextWakeupDeadline) - (offsetof(struct task_control_block, sleepUntil_ticks)));
-      assert(TS_SLEEPING == firstSleepingTaskToAwake->state);
-      if (0 == firstSleepingTaskToAwake->sleepUntil_ticks)
+      fx3Timer.firstSleepingTaskToAwake = (struct task_control_block*) (((uint8_t*) nextWakeupDeadline) - (offsetof(struct task_control_block, sleepUntil_ticks)));
+      assert(TS_SLEEPING == fx3Timer.firstSleepingTaskToAwake->state);
+      if (0 == fx3Timer.firstSleepingTaskToAwake->sleepUntil_ticks)
       {
-         fx3_readyTask(firstSleepingTaskToAwake);
-         if (firstSleepingTaskToAwake->effectivePriority < runningTask->effectivePriority)
+         fx3_readyTask(fx3Timer.firstSleepingTaskToAwake);
+         if (fx3Timer.firstSleepingTaskToAwake->effectivePriority < runningTask->effectivePriority)
          {
             runningTaskDethroned = true;
          }
-         firstSleepingTaskToAwake = NULL;
+         fx3Timer.firstSleepingTaskToAwake = NULL;
       }
    }
 
-   if (firstSleepingTaskToAwake)
+   if (fx3Timer.firstSleepingTaskToAwake)
    {
-      bsp_wakeUpAt_ticks(firstSleepingTaskToAwake->sleepUntil_ticks);
+      bsp_wakeUpAt_ticks(fx3Timer.firstSleepingTaskToAwake->sleepUntil_ticks);
    }
 
    if (runningTaskDethroned)
