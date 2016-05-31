@@ -25,10 +25,12 @@
 #include <string.h>
 #include <stddef.h>
 
-#include <task.h>
 #include <priority_queue.h>
+#include <bitops.h>
 
 #include <board.h>
+
+#include <task.h>
 
 #include <fx3_config.h>
 
@@ -37,6 +39,87 @@
 #ifdef FX3_RTT_TRACE
 #include <SEGGER_SYSVIEW.h>
 #endif
+
+/*
+ * FX3 command infrastructure
+ */
+
+enum command_type
+{
+   FX3_INVALID_COMMAND,
+
+   FX3_BLOCK_TASK,
+   FX3_READY_TASK,
+
+   FX3_TIMER_REQUEST_WAKEUP,
+
+   /// Sent by timer handler to FX3
+   FX3_TIMER_EVENT_WAKEUP,
+   FX3_TIMER_EVENT_EPOCH_ROLLOVER,
+};
+
+#ifndef FX3_COMMAND_QUEUE_SIZE
+#define FX3_COMMAND_QUEUE_SIZE 16
+#endif
+
+struct fx3_command
+{
+   /// used for intrusive data structures
+   struct fx3_command*        next;
+
+   enum command_type          type;
+
+   struct task_control_block* task;
+
+   void*                      object;
+};
+
+static struct fx3_message_center
+{
+   /// pool of available commands
+   struct fx3_command         pool[FX3_COMMAND_QUEUE_SIZE];
+
+   /// bitmap
+   volatile uint32_t          available;
+
+   struct fx3_command*        inbox;
+
+}  fx3MessageCenter;
+
+static inline struct fx3_command* allocateFX3Command(void)
+{
+   uint32_t idx = bit_alloc(&fx3MessageCenter.available);
+   assert(FX3_COMMAND_QUEUE_SIZE > idx);
+
+   struct fx3_command* cmd = &fx3MessageCenter.pool[idx];
+
+   // cleaned on free, because alloc tends to be more time-sensitive
+   assert(FX3_INVALID_COMMAND == cmd->type);
+   assert(NULL == cmd->task);
+   assert(NULL == cmd->object);
+   assert(NULL == cmd->next);
+
+   return cmd;
+}
+
+static inline void postFX3Command(struct fx3_command* cmd)
+{
+   fx3_enqueueMessage((struct buffer**) &fx3MessageCenter.inbox, (struct buffer*) cmd);
+   bsp_scheduleContextSwitch();
+}
+
+static inline void freeFX3Command(struct fx3_command* cmd)
+{
+   assert(cmd > fx3MessageCenter.pool);
+   ptrdiff_t idx = cmd - fx3MessageCenter.pool;
+   assert(FX3_COMMAND_QUEUE_SIZE > idx);
+   assert(0 == (fx3MessageCenter.available & (1 << idx)));
+
+   memset(cmd, 0, sizeof(*cmd));
+
+   bit_free(&fx3MessageCenter.available, idx);
+}
+
 
 /*
  * A task can be:
@@ -65,6 +148,9 @@ static struct fx3_timer
 
    struct priority_queue* sleepingTasks;
    struct priority_queue* sleepingTasksNextEpoch;
+
+   volatile uint32_t lastWokenUpAt;
+
 }  fx3Timer;
 
 /*
@@ -113,21 +199,24 @@ static inline uint32_t computeEffectivePriority(enum task_state state, const str
    return config->priority * 16 + state;
 }
 
-void fx3_readyTask(struct task_control_block* tcb)
+/* Mark task ready
+ */
+static void markTaskReady(struct task_control_block* tcb)
 {
    assert(tcb->config->timeSlice_ticks >= tcb->roundRobinSliceLeft_ticks);
-   tcb->state = TS_READY;
-   if (tcb->config->timeSlice_ticks)
+   if (tcb->config->timeSlice_ticks && (0 == tcb->roundRobinSliceLeft_ticks))
    {
-      if (0 == tcb->roundRobinSliceLeft_ticks)
-      {
-         tcb->state = TS_EXHAUSTED;
-      }
+      tcb->state = TS_EXHAUSTED;
+   }
+   else
+   {
+      tcb->state = TS_READY;
    }
 
    tcb->sleepUntil_ticks  = 0;
    tcb->effectivePriority = computeEffectivePriority(tcb->state, tcb->config);
    prq_push(&runnableTasks, &tcb->effectivePriority);
+
 #ifdef FX3_RTT_TRACE
    if (&idleTask != tcb)
    {
@@ -136,10 +225,24 @@ void fx3_readyTask(struct task_control_block* tcb)
 #endif
 }
 
+static void scheduleReadyTask(struct task_control_block* tcb)
+{
+   struct fx3_command* cmd = allocateFX3Command();
+
+   cmd->type = FX3_READY_TASK;
+   cmd->task = tcb;
+
+   postFX3Command(cmd);
+}
+
 static uint32_t tasksCreated_count;
 
 static void verifyTaskControlBlocks(bool expectTaskInRunningState)
 {
+#ifdef FX3_RTT_TRACE
+   SEGGER_SYSVIEW_RecordVoid(32);
+#endif
+
    bool foundTaskInRunningState = false;
    uint32_t tasksVisited = 0;
 
@@ -160,10 +263,6 @@ static void verifyTaskControlBlocks(bool expectTaskInRunningState)
       {
          assert(! foundTaskInRunningState);
          foundTaskInRunningState = true;
-      }
-      else
-      {
-         assert(0 == tcb->startedRunningAt_ticks);
       }
 
       assert(tcb->nextWithSamePriority);
@@ -199,8 +298,9 @@ static void verifyTaskControlBlocks(bool expectTaskInRunningState)
 
    /*
     * check running queue
+    * note; the queue is a heap, and indices start at 1
     */
-   for (uint32_t ii = 1; ii < runnableTasks.size; ii ++)
+   for (uint32_t ii = 1; ii <= runnableTasks.size; ii ++)
    {
       uint32_t* priority = runnableTasks.memPool[ii];
       struct task_control_block* readyTask = (struct task_control_block*) (((uint8_t*) priority) - (offsetof(struct task_control_block, effectivePriority)));
@@ -210,14 +310,19 @@ static void verifyTaskControlBlocks(bool expectTaskInRunningState)
 
    /*
     * check sleeping queue
+    * note; the queue is a heap, and indices start at 1
     */
-   for (uint32_t ii = 1; ii < fx3Timer.sleepingTasks->size; ii ++)
+   for (uint32_t ii = 1; ii <= fx3Timer.sleepingTasks->size; ii ++)
    {
       uint32_t* sleepUntil = fx3Timer.sleepingTasks->memPool[ii];
       struct task_control_block* sleepingTask = (struct task_control_block*) (((uint8_t*) sleepUntil) - (offsetof(struct task_control_block, sleepUntil_ticks)));;
 
       assert(TS_SLEEPING == sleepingTask->state);
    }
+
+#ifdef FX3_RTT_TRACE
+   SEGGER_SYSVIEW_RecordEndCall(32);
+#endif
 }
 
 void fx3_initialize(void)
@@ -236,8 +341,10 @@ void fx3_initialize(void)
    prq_initialize(&fx3Timer.sleepingTasks_1, fx3Timer.sleepingTasksMemPool_1, FX3_MAX_TASK_COUNT + 1);
    fx3Timer.sleepingTasks          = &fx3Timer.sleepingTasks_0;
    fx3Timer.sleepingTasksNextEpoch = &fx3Timer.sleepingTasks_1;
-
    fx3Timer.firstSleepingTaskToAwake = NULL;
+
+   memset(&fx3MessageCenter, 0, sizeof(fx3MessageCenter));
+   bit_initialize(&fx3MessageCenter.available, FX3_COMMAND_QUEUE_SIZE);
 
    sleepCycles = 0;
 
@@ -339,7 +446,7 @@ static void setupTasksLinks(void)
 
    idleTask.nextTaskInTheGreatLink = currentTask;
    idleTask.nextWithSamePriority   = &idleTask;
-   fx3_readyTask(currentTask);
+   markTaskReady(currentTask);
 
    while (! prq_isEmpty(fx3Timer.sleepingTasks))
    {
@@ -379,7 +486,7 @@ static void setupTasksLinks(void)
 
       currentTask->nextTaskInTheGreatLink = nextTask;
       currentTask = nextTask;
-      fx3_readyTask(currentTask);
+      markTaskReady(currentTask);
    }
 
    /*
@@ -409,10 +516,8 @@ void fx3_startMultitasking(void)
 
 static volatile uint32_t lastContextSwitchAt;
 
-void fx3_selectNextRunningTask(void)
+static void selectNextRunningTask(void)
 {
-   // no need to disable interrupts, the caller did it for us
-
    assert(TS_RUNNING != runningTask->state);
 
 #ifdef FX3_RTT_TRACE
@@ -479,6 +584,7 @@ void fx3_selectNextRunningTask(void)
    nextRunningTask->state = TS_RUNNING;
    nextRunningTask->startedRunning_count ++;
    nextRunningTask->startedRunningAt_ticks = lastContextSwitchAt;
+
 #ifdef FX3_RTT_TRACE
    if (&idleTask != nextRunningTask)
    {
@@ -491,46 +597,53 @@ void fx3_selectNextRunningTask(void)
 #endif
 }
 
+
 /** Transition this task from running to asleep
  *
  */
-void task_sleep_ms(uint32_t timeout_ms)
+bool handleSleepRequest(struct fx3_command* cmd)
 {
+   assert(FX3_TIMER_REQUEST_WAKEUP == cmd->type);
+
+   struct task_control_block* sleepyTask = cmd->task;
+   uint32_t timeout_ms = (uint32_t) cmd->object;
+   freeFX3Command(cmd);
+
    bsp_disableSystemTimer();
 
    bsp_cancelRoundRobinSliceTimeout();
 
-   if (runningTask->config->timeSlice_ticks)
+   if (sleepyTask->config->timeSlice_ticks)
    {
-      uint32_t runTime = bsp_computeInterval_ticks(runningTask->startedRunningAt_ticks, bsp_getTimestamp_ticks());
-      assert(runningTask->roundRobinSliceLeft_ticks >= runTime);
-      runningTask->roundRobinSliceLeft_ticks -= runTime;
+      uint32_t runTime = bsp_computeInterval_ticks(sleepyTask->startedRunningAt_ticks, bsp_getTimestamp_ticks());
+      assert(sleepyTask->roundRobinSliceLeft_ticks >= runTime);
+      sleepyTask->roundRobinSliceLeft_ticks -= runTime;
    }
 
    if (timeout_ms)
    {
       const uint32_t sleepDuration_ticks = bsp_getTicksForMS(timeout_ms);
 
-      if (runningTask->config->timeSlice_ticks)
+      if (sleepyTask->config->timeSlice_ticks)
       {
          /*
           * This task will sleep more than a full period of round-robin
           * scheduling at this priority so replenish its full slice.
           */
 
-         if (sleepDuration_ticks >= runningTask->roundRobinCumulative_ticks)
+         if (sleepDuration_ticks >= sleepyTask->roundRobinCumulative_ticks)
          {
-            runningTask->roundRobinSliceLeft_ticks = runningTask->config->timeSlice_ticks;
+            sleepyTask->roundRobinSliceLeft_ticks = sleepyTask->config->timeSlice_ticks;
          }
       }
 
-      runningTask->state             = TS_SLEEPING;
-      runningTask->effectivePriority = 0xffff;
+      //sleepyTask->state             = TS_SLEEPING;
+      sleepyTask->effectivePriority = 0xffff;
 
-      bool nextEpoch = bsp_computeWakeUp_ticks(sleepDuration_ticks, &runningTask->sleepUntil_ticks);
+      bool nextEpoch = bsp_computeWakeUp_ticks(sleepDuration_ticks, &sleepyTask->sleepUntil_ticks);
       if (nextEpoch)
       {
-         prq_push(fx3Timer.sleepingTasksNextEpoch, &runningTask->sleepUntil_ticks);
+         prq_push(fx3Timer.sleepingTasksNextEpoch, &sleepyTask->sleepUntil_ticks);
       }
       else
       {
@@ -546,13 +659,13 @@ void task_sleep_ms(uint32_t timeout_ms)
 
             assert(prq_isEmpty(fx3Timer.sleepingTasks));
 
-            fx3Timer.firstSleepingTaskToAwake = runningTask;
-            bsp_wakeUpAt_ticks(runningTask->sleepUntil_ticks);
+            fx3Timer.firstSleepingTaskToAwake = sleepyTask;
+            bsp_wakeUpAt_ticks(sleepyTask->sleepUntil_ticks);
          }
          else
          {
             assert(TS_SLEEPING == fx3Timer.firstSleepingTaskToAwake->state);
-            if (fx3Timer.firstSleepingTaskToAwake->sleepUntil_ticks > runningTask->sleepUntil_ticks)
+            if (fx3Timer.firstSleepingTaskToAwake->sleepUntil_ticks > sleepyTask->sleepUntil_ticks)
             {
                /*
                 * this new task is sleeping less than the previous task with the shortest sleep
@@ -560,12 +673,12 @@ void task_sleep_ms(uint32_t timeout_ms)
 
                prq_push(fx3Timer.sleepingTasks, &fx3Timer.firstSleepingTaskToAwake->sleepUntil_ticks);
 
-               fx3Timer.firstSleepingTaskToAwake = runningTask;
-               bsp_wakeUpAt_ticks(runningTask->sleepUntil_ticks);
+               fx3Timer.firstSleepingTaskToAwake = sleepyTask;
+               bsp_wakeUpAt_ticks(sleepyTask->sleepUntil_ticks);
             }
             else
             {
-               prq_push(fx3Timer.sleepingTasks, &runningTask->sleepUntil_ticks);
+               prq_push(fx3Timer.sleepingTasks, &sleepyTask->sleepUntil_ticks);
             }
          }
       }
@@ -581,7 +694,20 @@ void task_sleep_ms(uint32_t timeout_ms)
 
    bsp_enableSystemTimer();
 
-   bsp_scheduleContextSwitch();
+   return true;
+}
+
+void task_sleep_ms(uint32_t timeout_ms)
+{
+   runningTask->state = TS_SLEEPING;
+
+   struct fx3_command* cmd = allocateFX3Command();
+
+   cmd->type   = FX3_TIMER_REQUEST_WAKEUP;
+   cmd->task   = runningTask;
+   cmd->object = (void*) timeout_ms;
+
+   postFX3Command(cmd);
 }
 
 void task_block(enum task_state newState)
@@ -591,37 +717,23 @@ void task_block(enum task_state newState)
 
    bsp_cancelRoundRobinSliceTimeout();
 
-   __disable_irq();
    runningTask->state = newState;
    bsp_scheduleContextSwitch();
-   __enable_irq();
-   __ISB();
 }
 
-static volatile uint32_t lastWokenUpAt;
-
-bool bsp_onWokenUp(void)
+static bool handleWakeUpAlarm(struct fx3_command* cmd)
 {
-   assert(TS_RUNNING == runningTask->state);
-   lastWokenUpAt = bsp_getTimestamp_ticks();
-
-   __disable_irq();
-   verifyTaskControlBlocks(true);
-   __enable_irq();
-   __ISB();
-
-   assert(fx3Timer.firstSleepingTaskToAwake);
-   assert(fx3Timer.firstSleepingTaskToAwake->sleepUntil_ticks <= lastWokenUpAt);
-   assert(TS_SLEEPING == fx3Timer.firstSleepingTaskToAwake->state);
+   assert(FX3_TIMER_EVENT_WAKEUP == cmd->type);
+   struct task_control_block* sleepingTaskToAwake = cmd->task;
+   freeFX3Command(cmd);
 
    bool runningTaskDethroned = false;
 
-   fx3_readyTask(fx3Timer.firstSleepingTaskToAwake);
-   if (fx3Timer.firstSleepingTaskToAwake->effectivePriority < runningTask->effectivePriority)
+   markTaskReady(sleepingTaskToAwake);
+   if (sleepingTaskToAwake->effectivePriority < runningTask->effectivePriority)
    {
       runningTaskDethroned = true;
    }
-   fx3Timer.firstSleepingTaskToAwake = NULL;
    /*
     * done with the task that was waiting to be woken up
     */
@@ -636,7 +748,7 @@ bool bsp_onWokenUp(void)
       assert(TS_SLEEPING == fx3Timer.firstSleepingTaskToAwake->state);
       if (*nextWakeupDeadline <= bsp_getTimestamp_ticks())
       {
-         fx3_readyTask(fx3Timer.firstSleepingTaskToAwake);
+         markTaskReady(fx3Timer.firstSleepingTaskToAwake);
          if (fx3Timer.firstSleepingTaskToAwake->effectivePriority < runningTask->effectivePriority)
          {
             runningTaskDethroned = true;
@@ -652,19 +764,37 @@ bool bsp_onWokenUp(void)
 
    if (runningTaskDethroned)
    {
-      __disable_irq();
-      fx3_readyTask(runningTask);
-      bsp_scheduleContextSwitch();
-      __enable_irq();
-      __ISB();
+      markTaskReady(runningTask);
    }
 
    return runningTaskDethroned;
 }
 
-bool bsp_onEpochRollover(void)
+bool bsp_onWokenUp(void)
 {
-   assert(NULL == fx3Timer.firstSleepingTaskToAwake);
+   fx3Timer.lastWokenUpAt = bsp_getTimestamp_ticks();
+
+   assert(fx3Timer.firstSleepingTaskToAwake);
+   assert(fx3Timer.firstSleepingTaskToAwake->sleepUntil_ticks <= fx3Timer.lastWokenUpAt);
+   assert(TS_SLEEPING == fx3Timer.firstSleepingTaskToAwake->state);
+
+   struct fx3_command* cmd = allocateFX3Command();
+
+   cmd->type = FX3_TIMER_EVENT_WAKEUP;
+   cmd->task = fx3Timer.firstSleepingTaskToAwake;
+
+   fx3Timer.firstSleepingTaskToAwake = NULL;
+
+   postFX3Command(cmd);
+
+   return true;
+}
+
+static bool handleEpochRollover(struct fx3_command* cmd)
+{
+   assert(FX3_TIMER_EVENT_EPOCH_ROLLOVER == cmd->type);
+   freeFX3Command(cmd);
+
    assert(prq_isEmpty(fx3Timer.sleepingTasks));
 
    // swap queues
@@ -685,7 +815,7 @@ bool bsp_onEpochRollover(void)
       assert(TS_SLEEPING == fx3Timer.firstSleepingTaskToAwake->state);
       if (0 == fx3Timer.firstSleepingTaskToAwake->sleepUntil_ticks)
       {
-         fx3_readyTask(fx3Timer.firstSleepingTaskToAwake);
+         markTaskReady(fx3Timer.firstSleepingTaskToAwake);
          if (fx3Timer.firstSleepingTaskToAwake->effectivePriority < runningTask->effectivePriority)
          {
             runningTaskDethroned = true;
@@ -701,26 +831,33 @@ bool bsp_onEpochRollover(void)
 
    if (runningTaskDethroned)
    {
-      __disable_irq();
-      fx3_readyTask(runningTask);
-      bsp_scheduleContextSwitch();
-      __enable_irq();
-      __ISB();
+      markTaskReady(runningTask);
    }
 
    return runningTaskDethroned;
 }
 
+bool bsp_onEpochRollover(void)
+{
+   assert(NULL == fx3Timer.firstSleepingTaskToAwake);
+
+   struct fx3_command* cmd = allocateFX3Command();
+
+   cmd->type = FX3_TIMER_EVENT_EPOCH_ROLLOVER;
+
+   postFX3Command(cmd);
+
+   return true;
+}
+
 bool bsp_onRoundRobinSliceTimeout(void)
 {
-   struct task_control_block* thisTask = runningTask;
+   assert(TS_RUNNING == runningTask->state);
+   assert(runningTask->config->timeSlice_ticks);
 
-   assert(TS_RUNNING == thisTask->state);
+   runningTask->roundRobinSliceLeft_ticks = 0;
 
-   thisTask->state                     = TS_EXHAUSTED;
-   thisTask->roundRobinSliceLeft_ticks = 0;
-   thisTask->effectivePriority         = computeEffectivePriority(thisTask->state, thisTask->config);
-   prq_push(&runnableTasks, &thisTask->effectivePriority);
+   scheduleReadyTask(runningTask);
 
    bsp_scheduleContextSwitch();
 
@@ -753,10 +890,7 @@ void fx3_sendMessage(struct task_control_block* tcb, struct buffer* buf)
    // make tcb runnable if blocked on its queue
    if (TS_WAITING_FOR_MESSAGE == tcb->state)
    {
-      __disable_irq();
-      fx3_readyTask(tcb);
-      __enable_irq();
-      __ISB();
+      scheduleReadyTask(tcb);
    }
 }
 
@@ -808,3 +942,81 @@ struct buffer* fx3_waitForMessage(void)
    return buf;
 }
 
+bool fx3_processPendingCommands(void)
+{
+   bool contextSwitchNeeded = false;
+
+   verifyTaskControlBlocks(false);
+
+   while (true)
+   {
+      // lock-free fetch the inbox variable and simultaneously reset it
+      struct fx3_command* todo = (struct fx3_command*) fx3_flushInbox((struct buffer**) &fx3MessageCenter.inbox);
+
+      if (! todo)
+      {
+         break;
+      }
+      else
+      {
+         struct fx3_command* messageQueue = NULL;
+
+         /*
+          * Elements in the todo list are in the reverse order (most
+          * recent element is first). We need to process messages
+          * in FIFO order.
+          *
+          * So, treat both todo and message queue as stacks again,
+          * unstacking from todo and stacking into message queue.
+          *
+          * This will reverse the order, and the first message in the
+          * message queue is the oldest.
+          */
+         while (todo)
+         {
+            struct fx3_command* next = todo->next;
+            todo->next               = messageQueue;
+            messageQueue             = todo;
+            todo                     = next;
+         }
+
+         while (messageQueue)
+         {
+            struct fx3_command* cmd = (struct fx3_command*) messageQueue;
+            messageQueue = messageQueue->next;
+
+            switch (cmd->type)
+            {
+               case FX3_READY_TASK:
+                  markTaskReady(cmd->task);
+                  freeFX3Command(cmd);
+                  break;
+
+               case FX3_TIMER_REQUEST_WAKEUP:
+                  handleSleepRequest(cmd);
+                  contextSwitchNeeded = true;
+                  break;
+
+               case FX3_TIMER_EVENT_WAKEUP:
+                  contextSwitchNeeded |= handleWakeUpAlarm(cmd);
+                  break;
+
+               case FX3_TIMER_EVENT_EPOCH_ROLLOVER:
+                  contextSwitchNeeded |= handleEpochRollover(cmd);
+                  break;
+
+               default:
+                  assert(false);
+                  break;
+            }
+         }
+      }
+   }
+
+   if (contextSwitchNeeded)
+   {
+      selectNextRunningTask();
+   }
+
+   return contextSwitchNeeded;
+}

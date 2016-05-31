@@ -28,9 +28,6 @@
          .file     "context_switch.S"
          .syntax   unified
 
-         .bss
-         .lcomm svcExceptionReturn, 4
-
          .thumb
          .text
          .align    2
@@ -43,11 +40,14 @@ PendSV_Handler:
          .fnstart
          .cantunwind
 
-         CPSID    I                          // disable interrupts while we switch tasks
-
          PUSH     {LR}
-         BL       fx3_selectNextRunningTask
+         BL       fx3_processPendingCommands
          POP      {LR}
+
+         CMP      R0, #0
+         BEQ      no_switch_needed
+
+         CPSID    I                          // disable interrupts while we switch tasks
 
          MRS      R0, PSP                    // Get current process stack pointer
          TST      LR, #0x10                  // Test bit 4. If 0, need to stack floating point registers
@@ -79,6 +79,7 @@ PendSV_Handler:
          CPSIE    I                          // re-enable interrupts
          ISB
 
+no_switch_needed:
          BX       LR                         // Return
 
          .fnend
