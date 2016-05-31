@@ -164,7 +164,7 @@
        <BuildOptions></BuildOptions>
        <CompArgFile></CompArgFile>
        <CRLF>False</CRLF>
-       <ExternalMakeFileParameters>VERBOSE=true</ExternalMakeFileParameters>
+       <ExternalMakeFileParameters>VERBOSE=true WINIDEA=true</ExternalMakeFileParameters>
        <IndFileLocation>0</IndFileLocation>
        <IndirectionFile></IndirectionFile>
        <LinkerOptions></LinkerOptions>
