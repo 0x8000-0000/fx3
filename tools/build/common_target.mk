@@ -38,10 +38,15 @@ APP_FRAGMENTS:=$(wildcard ../../source/apps/*/app.mk)
 
 include $(APP_FRAGMENTS)
 
+local_artifacts: tags obj.$(COMPILER)$(FLAVOR)/$(APP_$(TARGET_APP)_TARGET).img
+
 obj.$(COMPILER)$(FLAVOR)/$(APP_$(TARGET_APP)_TARGET).img: force
 	@$(MAKE) --no-print-directory -C ../.. build/$(TARGET_DIR)/obj.$(COMPILER)$(FLAVOR)/$(APP_$(TARGET_APP)_TARGET).img
+
+tags: force
+	@$(MAKE) --no-print-directory -C ../.. build/$(TARGET_DIR)/tags
 
 clean:
 	@$(RM) -r obj.$(COMPILER)$(FLAVOR)
 
-.PHONY: clean force
+.PHONY: clean force local_artifacts
