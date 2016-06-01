@@ -110,8 +110,9 @@ struct USARTHandle
    IRQn_Type                  receiveDMAIRQ;
    uint32_t                   receiveDMAChannel;
    struct CircularBuffer      receiveBuffer;
-
 };
+
+#define CONSOLE_USART usart1
 
 #endif // __BOARD_LOCAL_H__
 

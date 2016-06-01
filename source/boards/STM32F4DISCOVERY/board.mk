@@ -38,6 +38,7 @@ BOARD_STM32F4DISCOVERY_S_VPATH:=\
 BOARD_STM32F4DISCOVERY_OBJECTS:=\
 	$(CHIP_STM32FXX_OBJECTS) \
 	board_stm32f4disco.o \
+	stm32f4_driver_usart.o \
 	bitops.o \
 	system_stm32f4xx.o \
 	stm32f4xx_hal.o \
@@ -45,6 +46,8 @@ BOARD_STM32F4DISCOVERY_OBJECTS:=\
 	stm32f4xx_hal_pwr.o \
 	stm32f4xx_hal_rcc.o \
 	stm32f4xx_hal_gpio.o \
+	stm32f4xx_hal_uart.o \
+	stm32f4xx_hal_dma.o \
 	startup_stm32f407xx.o \
 
 BOARD_STM32F4DISCOVERY_OPENOCD_BOARD_SCRIPT:=board/stm32f4discovery.cfg

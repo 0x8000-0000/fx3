@@ -45,6 +45,8 @@ static const char HELLO_WORLD[] = "Hello, World! ";
 static char messageBuffer[128];
 #endif
 
+static uint32_t bytesWritten;
+
 static void emitBytes(const void* arg)
 {
    struct USARTHandle* usart = (struct USARTHandle*) arg;
@@ -53,7 +55,7 @@ static void emitBytes(const void* arg)
 
    while (true)
    {
-      uint32_t bytesWritten = 0;
+      bytesWritten = 0;
 
 #ifdef CONSTANT_STRING
       usart_write(usart, (uint8_t*) HELLO_WORLD, (uint32_t) (sizeof(HELLO_WORLD) - 1), &bytesWritten);
@@ -89,7 +91,7 @@ static const struct task_config byteEmitterTaskConfig =
 {
    .name            = "Emit Bytes",
    .handler         = emitBytes,
-   .argument        = &usart1,
+   .argument        = &CONSOLE_USART,
    .priority        = 4,
    .stackBase       = byteEmitterStack,
    .stackSize       = sizeof(byteEmitterStack),

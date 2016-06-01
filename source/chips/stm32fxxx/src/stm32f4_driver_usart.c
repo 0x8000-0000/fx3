@@ -177,8 +177,8 @@ static void startTransmit(struct USARTHandle* handle, struct CircularBuffer* tra
 enum Status usart_write(struct USARTHandle* handle, const uint8_t* buffer, uint32_t bufferSize, uint32_t* bytesWritten)
 {
    struct CircularBuffer* transmitBuffer = &handle->transmitBuffer;
-
-   *bytesWritten = 0;
+   assert(transmitBuffer->size >= transmitBuffer->head);
+   assert(transmitBuffer->size >= transmitBuffer->tail);
 
    if ((! handle->transmitInProgress) && (bufferSize < 8))
    {
@@ -241,43 +241,49 @@ enum Status usart_write(struct USARTHandle* handle, const uint8_t* buffer, uint3
       }
       else
       {
+         *bytesWritten = 0;
+
          /*
-          * if adding all new data to tail would cause us to overflow the
-          * transmit buffer, copy as much data as we can to tail.
+          *  Case 1:    0 ... [HEAD] ... [TAIL] ... [MESSAGE] ... [SIZE]
+          *  Case 2:    0 ... [HEAD] ... [TAIL] ... [MESS] ... [SIZE] ... [AGE] ... [SIZE + HEAD]
+          *  Case 3:    0 ... [HEAD] ... [TAIL] ... [MESS] ... [SIZE] ... [SIZE + HEAD] ... [AGE]
+          *  Case 4:    0 ... [TAIL] ... [MESSAGE] ... [HEAD]
+          *  Case 5:    0 ... [TAIL] ... [MESS] ... [HEAD] ... [AGE]
           */
-         if ((transmitBuffer->tail + bufferSize) > transmitBuffer->size)
+         uint32_t availableSpace = (transmitBuffer->size + transmitBuffer->head) - transmitBuffer->tail;
+         if (availableSpace > transmitBuffer->size)
          {
-            uint32_t endSize = transmitBuffer->size - transmitBuffer->tail;
-
-            memcpy(transmitBuffer->data + transmitBuffer->tail, buffer, endSize);
-
-            buffer        += endSize;
-            bufferSize    -= endSize;
-            *bytesWritten  = endSize;
-
-            transmitBuffer->tail = 0;
-
-            if (0 == transmitBuffer->head)
-            {
-               handle->transmitBufferIsFull = true;
-            }
+            availableSpace -= transmitBuffer->size;
          }
 
-         if (! handle->transmitBufferIsFull)
+         if (bufferSize >= availableSpace)
+         {
+            bufferSize = availableSpace;
+            handle->transmitBufferIsFull = true;         // not yet, but soon
+         }
+
+         if (transmitBuffer->tail > transmitBuffer->head)
          {
             /*
-             * if adding all data in buffer to tail would cause us to
-             * overwrite the head, reduce the amount of data we can accept
+             * does the message not fit between [tail] and [size]?
              */
-            if (transmitBuffer->tail + bufferSize > transmitBuffer->head)
+            if ((transmitBuffer->tail + bufferSize) > transmitBuffer->size)
             {
-               bufferSize = transmitBuffer->head - transmitBuffer->tail;
-            }
+               uint32_t endSize = transmitBuffer->size - transmitBuffer->tail;
 
-            memcpy(transmitBuffer->data + transmitBuffer->tail, buffer, bufferSize);
-            *bytesWritten        += bufferSize;
-            transmitBuffer->tail += bufferSize;
+               memcpy(transmitBuffer->data + transmitBuffer->tail, buffer, endSize);
+
+               buffer        += endSize;
+               bufferSize    -= endSize;
+               *bytesWritten += endSize;
+
+               transmitBuffer->tail = 0;
+            }
          }
+
+         memcpy(transmitBuffer->data + transmitBuffer->tail, buffer, bufferSize);
+         *bytesWritten        += bufferSize;
+         transmitBuffer->tail += bufferSize;
       }
 
       if (! handle->transmitInProgress)
@@ -287,6 +293,8 @@ enum Status usart_write(struct USARTHandle* handle, const uint8_t* buffer, uint3
 
       HAL_NVIC_EnableIRQ(handle->transmitDMAIRQ);
    }
+
+   assert(bufferSize >= *bytesWritten);
 
    return STATUS_OK;
 }
@@ -513,5 +521,17 @@ void DMA2_Stream2_IRQHandler(void)
 void USART2_IRQHandler(void)
 {
    usart_handleIRQ(&usart2);
+}
+
+// USART2 transmit DMA
+void DMA1_Stream6_IRQHandler(void)
+{
+   usart_handleTransmitDMAIRQ(&usart2);
+}
+
+// USART2 receive DMA
+void DMA1_Stream5_IRQHandler(void)
+{
+   usart_handleReceiveDMAIRQ(&usart2);
 }
 

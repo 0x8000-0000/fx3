@@ -23,6 +23,7 @@
 
 #include <assert.h>
 #include <stdbool.h>
+#include <string.h>
 
 #include <board.h>
 
@@ -87,6 +88,83 @@ static void initializeLEDs(void)
    HAL_GPIO_Init(GPIOD, (GPIO_InitTypeDef*) &GPIO_InitStruct);
 }
 
+uint8_t transmitBufferSupport[512];
+uint8_t receiveBufferSupport[512];
+
+struct USARTHandle usart1;
+struct USARTHandle usart2;
+
+static void initializeUART(void)
+{
+   __GPIOA_CLK_ENABLE();
+
+   // UART1
+   {
+      memset(&usart1, 0, sizeof(usart1));
+      usart1.receiveBuffer.size = 256;
+      usart1.receiveBuffer.data = receiveBufferSupport;
+      usart1.transmitBuffer.size = 256;
+      usart1.transmitBuffer.data = transmitBufferSupport;
+
+      static const GPIO_InitTypeDef GPIO_InitStruct =
+      {
+         .Pin       = GPIO_PIN_9 | GPIO_PIN_10,
+         .Mode      = GPIO_MODE_AF_PP,
+         .Pull      = GPIO_NOPULL,
+         .Speed     = GPIO_SPEED_FAST,
+         .Alternate = GPIO_AF7_USART1,
+      };
+      HAL_GPIO_Init(GPIOA, (GPIO_InitTypeDef*) &GPIO_InitStruct);
+
+      __HAL_RCC_USART1_CLK_ENABLE();
+      __HAL_RCC_DMA2_CLK_ENABLE();
+
+      usart1.huart.Instance       = USART1;
+      usart1.uartIRQ              = USART1_IRQn;
+
+      usart1.transmitDMA.Instance = DMA2_Stream7;
+      usart1.transmitDMAIRQ       = DMA2_Stream7_IRQn;
+      usart1.transmitDMAChannel   = DMA_CHANNEL_4;
+
+      usart1.receiveDMA.Instance  = DMA2_Stream2;
+      usart1.receiveDMAIRQ        = DMA2_Stream2_IRQn;
+      usart1.receiveDMAChannel    = DMA_CHANNEL_4;
+   }
+
+   // UART2
+   {
+      memset(&usart2, 0, sizeof(usart2));
+      usart2.receiveBuffer.size = 256;
+      usart2.receiveBuffer.data = receiveBufferSupport + 256;
+      usart2.transmitBuffer.size = 256;
+      usart2.transmitBuffer.data = transmitBufferSupport + 256;
+
+      static const GPIO_InitTypeDef GPIO_InitStruct =
+      {
+         .Pin       = GPIO_PIN_2 | GPIO_PIN_3,
+         .Mode      = GPIO_MODE_AF_PP,
+         .Pull      = GPIO_NOPULL,
+         .Speed     = GPIO_SPEED_FAST,
+         .Alternate = GPIO_AF7_USART2,
+      };
+      HAL_GPIO_Init(GPIOA, (GPIO_InitTypeDef*) &GPIO_InitStruct);
+
+      __HAL_RCC_USART2_CLK_ENABLE();
+      __HAL_RCC_DMA1_CLK_ENABLE();
+
+      usart2.huart.Instance       = USART2;
+      usart2.uartIRQ              = USART2_IRQn;
+
+      usart2.transmitDMA.Instance = DMA1_Stream6;
+      usart2.transmitDMAIRQ       = DMA1_Stream6_IRQn;
+      usart2.transmitDMAChannel   = DMA_CHANNEL_4;
+
+      usart2.receiveDMA.Instance  = DMA1_Stream5;
+      usart2.receiveDMAIRQ        = DMA1_Stream5_IRQn;
+      usart2.receiveDMAChannel    = DMA_CHANNEL_4;
+   }
+}
+
 void bsp_initialize(void)
 {
    chp_initialize();
@@ -96,6 +174,8 @@ void bsp_initialize(void)
    initializeMainClock();
 
    initializeLEDs();
+
+   initializeUART();
 }
 
 void bsp_turnOnLED(uint32_t ledId)

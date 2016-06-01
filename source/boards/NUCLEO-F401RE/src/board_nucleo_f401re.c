@@ -142,7 +142,6 @@ struct USARTHandle usart2;
 
 static void initializeUART(void)
 {
-
    __GPIOA_CLK_ENABLE();
 
    // UART1
@@ -203,7 +202,7 @@ static void initializeUART(void)
       usart2.uartIRQ              = USART2_IRQn;
 
       usart2.transmitDMA.Instance = DMA1_Stream6;
-      usart2.transmitDMAIRQ       = DMA1_Stream7_IRQn;
+      usart2.transmitDMAIRQ       = DMA1_Stream6_IRQn;
       usart2.transmitDMAChannel   = DMA_CHANNEL_4;
 
       usart2.receiveDMA.Instance  = DMA1_Stream5;

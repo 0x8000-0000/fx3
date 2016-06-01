@@ -27,6 +27,8 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+#include <circular_buffer.h>
+
 #include <stm32f4xx.h>
 
 static inline uint32_t bsp_getTicksForMS(uint32_t time_ms)
@@ -85,8 +87,31 @@ enum BOARD_LED
 
 struct USARTHandle
 {
-   UART_HandleTypeDef huart;
+   UART_HandleTypeDef         huart;
+   IRQn_Type                  uartIRQ;
+
+   DMA_HandleTypeDef          transmitDMA;
+   IRQn_Type                  transmitDMAIRQ;
+   uint32_t                   transmitDMAChannel;
+   struct CircularBuffer      transmitBuffer;
+   bool                       transmitBufferIsFull;
+
+   uint32_t                   currentTransmitTail;
+   bool                       transmitInProgress;
+
+   struct
+   {
+      uint32_t                started;
+      uint32_t                completed;
+   }  transmitStatus;
+
+   DMA_HandleTypeDef          receiveDMA;
+   IRQn_Type                  receiveDMAIRQ;
+   uint32_t                   receiveDMAChannel;
+   struct CircularBuffer      receiveBuffer;
 };
+
+#define CONSOLE_USART usart2
 
 #endif // __BOARD_LOCAL_H__
 
