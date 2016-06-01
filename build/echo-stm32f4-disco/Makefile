@@ -1,5 +1,5 @@
 # @file Makefile
-# @brief Build file fragment for hardware test apps
+# @brief Build file fragment for echo test app on stm32f4-disco board
 # @author Florin Iucha <florin@signbit.net>
 # @copyright Apache License, Version 2.0
 
@@ -17,23 +17,7 @@
 #
 # This file is part of FX3 RTOS for ARM Cortex-M4
 
+TARGET_APP:=ECHO
 
-APP_CHARGEN_TARGET:=chargen
+include ../../tools/build/common_target.mk
 
-APP_CHARGEN_OBJECTS:=chargen.o
-
-APP_CHARGEN_C_VPATH:=source/apps/tests
-
-
-APP_HELLO_WORLD_TARGET:=hello
-
-APP_HELLO_WORLD_OBJECTS:=hello_world.o
-
-APP_HELLO_WORLD_C_VPATH:=source/apps/tests
-
-
-APP_ECHO_TARGET:=echo
-
-APP_ECHO_OBJECTS:=echo.o
-
-APP_ECHO_C_VPATH:=source/apps/tests

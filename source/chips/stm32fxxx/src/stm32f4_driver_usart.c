@@ -30,6 +30,8 @@
 
 enum Status usart_initialize(struct USARTHandle* handle, const struct USARTConfiguration* config)
 {
+   fx3_initializeSemaphore(&handle->receiveBufferNotEmpty, 0);
+
    // TODO: copy the rest of the settings
    handle->huart.Init.BaudRate     = config->baudRate;
    handle->huart.Init.WordLength   = UART_WORDLENGTH_8B;
@@ -117,12 +119,65 @@ enum Status usart_initialize(struct USARTHandle* handle, const struct USARTConfi
 
 enum Status usart_read(struct USARTHandle* handle, uint8_t* buffer, uint32_t bufferSize, uint32_t* bytesRead)
 {
-   (void) handle;
-   (void) buffer;
-   (void) bufferSize;
-   (void) bytesRead;
+   struct CircularBuffer* receiveBuffer = &handle->receiveBuffer;
 
-   return STATUS_NOT_IMPLEMENTED;
+   *bytesRead = 0;
+
+   if ((receiveBuffer->head + receiveBuffer->size) < receiveBuffer->tail)
+   {
+      handle->receiveBufferOverflow ++;
+      receiveBuffer->head = receiveBuffer->tail - receiveBuffer->size;
+   }
+
+   const uint32_t bytesAvailable = receiveBuffer->tail - receiveBuffer->head;
+
+   if (bufferSize > bytesAvailable)
+   {
+      bufferSize = bytesAvailable;
+   }
+
+   uint32_t realHead = receiveBuffer->head % receiveBuffer->size;
+   uint32_t realTail = receiveBuffer->tail % receiveBuffer->size;
+
+   if (realHead > realTail)
+   {
+      const uint32_t endZoneSize = receiveBuffer->size - realHead;
+
+      memcpy(buffer, handle->receiveBuffer.data + realHead, endZoneSize);
+
+      *bytesRead          += endZoneSize;
+      buffer              += endZoneSize;
+      bufferSize          -= endZoneSize;
+
+      receiveBuffer->head += endZoneSize;
+
+      realHead   = 0;
+   }
+
+   memcpy(buffer, receiveBuffer->data + realHead, bufferSize);
+   *bytesRead          += bufferSize;
+   receiveBuffer->head += bufferSize;
+
+   return STATUS_OK;
+}
+
+enum Status usart_waitForReadable(struct USARTHandle* handle, uint32_t* bytesAvailable)
+{
+   if (handle->receiveBuffer.tail == handle->receiveBuffer.head)
+   {
+      fx3_waitOnSemaphore(&handle->receiveBufferNotEmpty);
+   }
+
+   if (handle->receiveBuffer.head < handle->receiveBuffer.tail)
+   {
+      *bytesAvailable = handle->receiveBuffer.tail - handle->receiveBuffer.head;
+   }
+   else
+   {
+      *bytesAvailable = handle->receiveBuffer.size + handle->receiveBuffer.head - handle->receiveBuffer.tail - 1;
+   }
+
+   return STATUS_OK;
 }
 
 static void startTransmit(struct USARTHandle* handle, struct CircularBuffer* transmitBuffer)
@@ -205,8 +260,8 @@ enum Status usart_write(struct USARTHandle* handle, const uint8_t* buffer, uint3
 
       *bytesWritten = inputBufferSize;
 
-      assert(0 == transmitBuffer->head);
-      assert(0 == transmitBuffer->tail);
+      transmitBuffer->head = 0;
+      transmitBuffer->tail = 0;
    }
    else
    {
@@ -292,15 +347,16 @@ enum Status usart_write(struct USARTHandle* handle, const uint8_t* buffer, uint3
       }
 
       HAL_NVIC_EnableIRQ(handle->transmitDMAIRQ);
-   }
 
-   assert(bufferSize >= *bytesWritten);
+      assert(bufferSize >= *bytesWritten);
+   }
 
    return STATUS_OK;
 }
 
 static void usart_onDataAvailable(struct USARTHandle* handle)
 {
+   fx3_signalSemaphore(&handle->receiveBufferNotEmpty);
 }
 
 static void usart_handleIRQ(struct USARTHandle* handle)

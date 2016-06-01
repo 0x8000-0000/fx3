@@ -27,6 +27,8 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+#include <synchronization.h>
+
 #include <circular_buffer.h>
 
 #include <stm32f4xx.h>
@@ -62,6 +64,7 @@ static inline uint32_t bsp_computeInterval_ticks(uint32_t start_ticks, uint32_t 
 static inline void bsp_scheduleContextSwitch(void)
 {
    SCB->ICSR |= SCB_ICSR_PENDSVSET_Msk; // Set PendSV to pending
+   __ISB();
 }
 
 static inline bool bsp_computeWakeUp_ticks(uint32_t duration_ticks, uint32_t* wakeupAt_ticks)
@@ -109,6 +112,8 @@ struct USARTHandle
    IRQn_Type                  receiveDMAIRQ;
    uint32_t                   receiveDMAChannel;
    struct CircularBuffer      receiveBuffer;
+   struct semaphore           receiveBufferNotEmpty;
+   uint32_t                   receiveBufferOverflow;
 };
 
 #define CONSOLE_USART usart2

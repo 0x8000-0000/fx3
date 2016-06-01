@@ -108,3 +108,6 @@ fx3_startMultitaskingImpl:
 
          .fnend
          .size    fx3_startMultitaskingImpl, . - fx3_startMultitaskingImpl
+
+         .end
+

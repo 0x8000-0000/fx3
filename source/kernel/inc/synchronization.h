@@ -31,14 +31,23 @@
  * @{
  */
 
-struct semaphore;
+struct task_control_block;
+
+struct semaphore
+{
+   uint32_t counter;
+
+   struct task_control_block* antechamber;
+
+   struct task_control_block* waitList;
+};
 
 /** Initialize this semaphore
  *
  * @param sem is the semaphore
  * @param count is the initial state of the semaphore
  */
-void sem_initialize(struct semaphore* sem, uint32_t count);
+void fx3_initializeSemaphore(struct semaphore* sem, uint32_t count);
 
 /** Wait for this semaphore; block this thread until the
  * semaphore is signaled
@@ -46,14 +55,14 @@ void sem_initialize(struct semaphore* sem, uint32_t count);
  * @param sem is the semaphore
  * @return the semaphore count
  */
-uint32_t sem_wait(struct semaphore* sem);
+uint32_t fx3_waitOnSemaphore(struct semaphore* sem);
 
 /** Signal this semaphore
  *
  * @param sem is the semaphore
  * @return the semaphore count
  */
-uint32_t sem_signal(struct semaphore* sem);
+uint32_t fx3_signalSemaphore(struct semaphore* sem);
 
 /** @} */
 

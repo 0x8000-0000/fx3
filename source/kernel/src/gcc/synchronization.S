@@ -1,133 +1,121 @@
 /**
- * @file
- * @author ARM
- * @copyright ???
+ * @file synchronization.S
+ * @brief Implementation of synchronization primitives
+ * @author Florin Iucha <florin@signbit.net>
+ * @copyright Apache License, Version 2.0
+ */
+
+/*
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * This file is part of FX3 RTOS for ARM Cortex-M4
  *
  * Based on "ARM Synchronization Primitives" article
  * http://infocenter.arm.com/help/topic/com.arm.doc.dht0008a/DHT0008A_arm_synchronization_primitives.pdf
  */
 
-   .file    "synchronization.S"
-   .syntax  unified
+         .file    "synchronization.S"
+         .syntax  unified
 
-   .thumb
-   .section "text"
-   .align   2
+         .thumb
+         .text
+         .align   2
 
-   .set     LOCKED,   1
-   .set     UNLOCKED, 0
+         .thumb_func
+         .type    fx3_initializeSemaphore, %function
+         .code    16
+         .global  fx3_initializeSemaphore
 
-   .thumb_func
-   .type    mutex_acquire, %function
-   .global  mutex_acquire
-mutex_acquire:
-   .fnstart
-   .cantunwind
+fx3_initializeSemaphore:
+         .fnstart
+         .cantunwind
 
-   LDR      r1, =LOCKED
+         MOV      R1, #0
+         STR      R1, [R0]
+         BX       LR
 
-try_again:
-   LDREX    r2, [r0]
-   CMP      r2, r1               // Test if mutex is locked on unlocked
-   BEQ      mutex_locked
-   ITT      NE
-   STREXNE  r2, r1, [r0]         // Not locked, attempt to lock it
-   CMPNE    r2, #1               // Check if Store-Exclusive Failed
-   BEQ      try_again
-   // Lock aqcuired
-   DMB
-   BX       lr
+         .fnend
+         .size    fx3_initializeSemaphore, . - fx3_initializeSemaphore
 
-mutex_locked:
-
-   // WAIT_FOR_UPDATE
-   PUSH     {r0-r3,r7,r12}
-   LDR      r7, =yield
-   SVC      #0
-   POP      {r0-r3,r7,r12}
-   B        try_again
-
-   .fnend
-   .size    mutex_acquire, . - mutex_acquire
-
-   .thumb_func
-   .type    mutex_release, %function
-   .global  mutex_release
-mutex_release:
-   .fnstart
-   .cantunwind
-
-   LDR      r1, =UNLOCKED
-   DMB
-   STR      r1, [r0]
-
-   // SIGNAL_UPDATE
-   PUSH     {r0-r3,r7,r12}
-   LDR      r7, =released
-   SVC      #0
-   POP      {r0-r3,r7,r12}
-
-   BX       lr
-
-   .fnend
-   .size    mutex_release, . - mutex_release
+         .thumb_func
+         .type    fx3_signalSemaphore, %function
+         .code    16
+         .global  fx3_signalSemaphore
 
 
-   .thumb_func
-   .type    semaphore_pend, %function
-   .global  semaphore_pend
-semaphore_pend:
-   .fnstart
-   .cantunwind
+         .extern  fx3impl_enqueueTaskOnSemaphore
+         .extern  fx3impl_wakeupTasksWaitingOnSemaphore
 
-   LDREX    r1, [r0]
-   CMP      r1, #0               // Test if semaphore is 0
-   BEQ      semaphore_blocked
-   SUB      r1, #1               // Decrement temporary copy
-   STREX    r2, r1, [r0]         // Attempt store-exclusive
-   CMP      r2, #0               // Check if store-exclusive succeeded
-   BNE      semaphore_pend
-   DMB
-   MOV      r0, r1
-   BX       lr
+         .thumb_func
+         .type    fx3_waitOnSemaphore, %function
+         .code    16
+         .global  fx3_waitOnSemaphore
+
+fx3_waitOnSemaphore:
+         .fnstart
+         .cantunwind
+
+         LDREX    R1, [R0]
+         CMP      R1, #0               // Test if semaphore is 0
+         BEQ      semaphore_blocked
+         SUB      R1, #1               // Decrement temporary copy
+         STREX    R2, R1, [R0]         // Attempt store-exclusive
+         CMP      R2, #0               // Check if store-exclusive succeeded
+         BNE      fx3_waitOnSemaphore
+         DMB
+         MOV      R0, R1               // return count
+         BX       LR
 
 semaphore_blocked:
-   // WAIT_FOR_UPDATE
-   PUSH     {r0-r3,r7,r12}
-   LDR      r7, =yield
-   SVC      #0
-   POP      {r0-r3,r7,r12}
-   B        semaphore_pend
+         // WAIT_FOR_UPDATE
+         PUSH     {R0,LR}
+         BL       fx3impl_enqueueTaskOnSemaphore
+         POP      {R0,LR}
+         B        fx3_waitOnSemaphore
 
-   .fnend
-   .size    semaphore_pend, . - semaphore_pend
+         .fnend
+         .size    fx3_waitOnSemaphore, . - fx3_waitOnSemaphore
 
-   .thumb_func
-   .type    semaphore_post, %function
-   .global  semaphore_post
-semaphore_post:
-   .fnstart
-   .cantunwind
+         .thumb_func
+         .type    fx3_signalSemaphore, %function
+         .code    16
+         .global  fx3_signalSemaphore
 
-   LDREX    r1, [r0]
-   ADD      r1, #1               // Increment temporary copy
-   STREX    r2, r1, [r0]         // Attempt store-exclusive
-   CMP      r2, #0               // Check if store-exclusive succeeded
-   BNE      semaphore_post
-   CMP      r0, #1               // Check if incremented from 0
-   DMB
-   BGE      semaphore_released
-   BX       lr
+fx3_signalSemaphore:
+         .fnstart
+         .cantunwind
+
+         LDREX    R1, [R0]
+         ADD      R1, #1               // Increment temporary copy
+         STREX    R2, R1, [R0]         // Attempt store-exclusive
+         CMP      R2, #0               // Check if store-exclusive succeeded
+         BNE      fx3_signalSemaphore
+         CMP      R0, #1               // Check if incremented from 0
+         DMB
+         BGE      semaphore_released
+         BX       LR
 
 semaphore_released:
 
-   // SIGNAL_UPDATE
-   PUSH     {r0-r3,r7,r12}
-   LDR      r7, =released
-   SVC      #0
-   POP      {r0-r3,r7,r12}
+         // SIGNAL_UPDATE
+         PUSH     {R0,LR}
+         BL       fx3impl_wakeupTasksWaitingOnSemaphore
+         POP      {R0,LR}
 
-   BX       lr
+         BX       LR
 
-   .fnend
-   .size    semaphore_post, . - semaphore_post
+         .fnend
+         .size    fx3_signalSemaphore, . - fx3_signalSemaphore
+
+         .end
+

@@ -31,6 +31,7 @@
 #include <board.h>
 
 #include <task.h>
+#include <synchronization.h>
 
 #include <fx3_config.h>
 
@@ -50,6 +51,8 @@ enum command_type
 
    FX3_BLOCK_TASK,
    FX3_READY_TASK,
+
+   FX3_SIGNAL_SEMAPHORE,
 
    FX3_TIMER_REQUEST_WAKEUP,
 
@@ -946,9 +949,69 @@ struct buffer* fx3_waitForMessage(void)
    return buf;
 }
 
+static inline int __attribute__((pure)) compareTaskPriorities(const struct list_element* left, const struct list_element* right) 
+{
+   const struct task_control_block* leftTask  = (const struct task_control_block*) left;
+   const struct task_control_block* rightTask = (const struct task_control_block*) right;
+
+   if (leftTask->effectivePriority < rightTask->effectivePriority)
+   {
+      return -1;
+   }
+   else
+   {
+      return 1;
+   }
+}
+
+static bool handleSemaphoreSignal(struct fx3_command* cmd)
+{
+   assert(FX3_SIGNAL_SEMAPHORE == cmd->type);
+   struct semaphore* sem = cmd->object;
+   freeFX3Command(cmd);
+
+   bool runningTaskDethroned = false;
+
+   // fetch late arrivals
+   struct list_element* todo = fx3_flushInbox(&sem->antechamber);
+
+   assert(lst_isSortedAscending(&sem->waitList->element, compareTaskPriorities));
+
+   /*
+    * merge tasks from antechamber into wait list
+    */
+   if ((NULL == sem->waitList) && (todo) && (NULL == todo->next))
+   {
+      // shortcut; target empty, source has only one element
+      sem->waitList = (struct task_control_block*) todo;
+   }
+   else
+   {
+      lst_mergeListIntoSortedList((struct list_element**) &sem->waitList, todo, compareTaskPriorities);
+   }
+
+   // select the highest priority waiting task and mark ready
+   struct task_control_block* highestPriorityWaitingTask = sem->waitList;
+   if (highestPriorityWaitingTask)
+   {
+      sem->waitList                    = highestPriorityWaitingTask->next;
+      highestPriorityWaitingTask->next = NULL;
+
+      markTaskReady(highestPriorityWaitingTask);
+      runningTaskDethroned = (highestPriorityWaitingTask->effectivePriority < runningTask->effectivePriority);
+   }
+
+   if (runningTaskDethroned)
+   {
+      markTaskReady(runningTask);
+   }
+
+   return runningTaskDethroned;
+}
+
 bool fx3_processPendingCommands(void)
 {
-   bool contextSwitchNeeded = false;
+   bool contextSwitchNeeded = (TS_RUNNING != runningTask->state);
 
    verifyTaskControlBlocks(false);
 
@@ -1009,6 +1072,10 @@ bool fx3_processPendingCommands(void)
                   contextSwitchNeeded |= handleEpochRollover(cmd);
                   break;
 
+               case FX3_SIGNAL_SEMAPHORE:
+                  contextSwitchNeeded |= handleSemaphoreSignal(cmd);
+                  break;
+
                default:
                   assert(false);
                   break;
@@ -1023,4 +1090,24 @@ bool fx3_processPendingCommands(void)
    }
 
    return contextSwitchNeeded;
+}
+
+void fx3impl_wakeupTasksWaitingOnSemaphore(struct semaphore* sem)
+{
+   struct fx3_command* cmd = allocateFX3Command();
+
+   cmd->type   = FX3_SIGNAL_SEMAPHORE;
+   cmd->object = sem;
+
+   postFX3Command(cmd);
+}
+
+void fx3impl_enqueueTaskOnSemaphore(struct semaphore* sem)
+{
+   runningTask->waitingOn = sem;
+   runningTask->state     = TS_WAITING_FOR_SEMAPHORE;
+
+   fx3_enqueueMessage(&sem->antechamber, &runningTask->element);
+
+   bsp_scheduleContextSwitch();
 }
