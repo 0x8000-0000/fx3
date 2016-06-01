@@ -69,17 +69,17 @@ static void toggleLed(const void* arg)
 {
    struct led_toggler* tog = (struct led_toggler*) arg;
 
-   task_sleep_ms(tog->initialDelay_ms);
+   fx3_suspendTask(tog->initialDelay_ms);
 
    while (true)
    {
       bsp_turnOnLED(tog->ledId);
 
-      task_sleep_ms(tog->period_ms);
+      fx3_suspendTask(tog->period_ms);
 
       bsp_turnOffLED(tog->ledId);
 
-      task_sleep_ms(tog->period_ms);
+      fx3_suspendTask(tog->period_ms);
    }
 }
 

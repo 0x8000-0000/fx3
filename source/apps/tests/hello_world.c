@@ -76,7 +76,7 @@ static void emitBytes(const void* arg)
 
       counter ++;
 
-      task_sleep_ms(100);
+      fx3_suspendTask(100);
    }
 }
 

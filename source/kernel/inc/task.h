@@ -172,7 +172,7 @@ void fx3_yield(void);
  *
  * @param timeout_ms is the minimum amount of time to sleep
  */
-void task_sleep_ms(uint32_t timeout_ms);
+void fx3_suspendTask(uint32_t timeout_ms);
 
 /** Post a message to a task queue
  *

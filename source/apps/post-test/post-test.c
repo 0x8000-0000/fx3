@@ -75,11 +75,11 @@ static void toggleLed(const void* arg)
 {
    struct led_toggler* tog = (struct led_toggler*) arg;
 
-   task_sleep_ms(tog->initialDelay_ms);
+   fx3_suspendTask(tog->initialDelay_ms);
 
    while (true)
    {
-      task_sleep_ms(tog->sleepBeforeWork_ms);
+      fx3_suspendTask(tog->sleepBeforeWork_ms);
 
       for (uint32_t ii = 0; ii < tog->messageOn_count; ii ++)
       {
@@ -89,7 +89,7 @@ static void toggleLed(const void* arg)
 
       bsp_turnOnLED(tog->ledId);
 
-      task_sleep_ms(tog->sleepBeforeWork_ms);
+      fx3_suspendTask(tog->sleepBeforeWork_ms);
 
       for (uint32_t ii = 0; ii < tog->messageOff_count; ii ++)
       {
@@ -160,7 +160,7 @@ static void sendMessages(const void* arg)
 {
    struct messager* msg = (struct messager*) arg;
 
-   task_sleep_ms(msg->initialDelay_ms);
+   fx3_suspendTask(msg->initialDelay_ms);
 
    uint32_t nextValue = 0;
 
@@ -174,10 +174,10 @@ static void sendMessages(const void* arg)
 
          fx3_sendMessage(&togglerTCB[nextValue % 4], buf);
 
-         task_sleep_ms(msg->messageInterval_ms);
+         fx3_suspendTask(msg->messageInterval_ms);
       }
 
-      task_sleep_ms(msg->period_ms);
+      fx3_suspendTask(msg->period_ms);
    }
 }
 

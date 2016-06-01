@@ -697,7 +697,7 @@ bool handleSleepRequest(struct fx3_command* cmd)
    return true;
 }
 
-void task_sleep_ms(uint32_t timeout_ms)
+void fx3_suspendTask(uint32_t timeout_ms)
 {
    runningTask->state = TS_SLEEPING;
 
