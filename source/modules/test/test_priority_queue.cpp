@@ -84,7 +84,11 @@ TEST(PriorityQueue, TwoElementsOutOfOrder)
 
 TEST(PriorityQueue, PermutationsOfXValues)
 {
+#ifdef HAS_A_LOT_OF_TIME_AVAILABLE
    const uint32_t XX = 10;
+#else
+   const uint32_t XX = 5;
+#endif
 
    uint32_t* values = new uint32_t[XX];
 
