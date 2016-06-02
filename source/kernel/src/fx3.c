@@ -65,7 +65,11 @@ enum command_type
 struct fx3_command
 {
    /// used for intrusive data structures
-   struct fx3_command*        next;
+   union
+   {
+      struct fx3_command*     next;
+      struct list_element     element;
+   };
 
    enum command_type          type;
 
@@ -104,7 +108,7 @@ static inline struct fx3_command* allocateFX3Command(void)
 
 static inline void postFX3Command(struct fx3_command* cmd)
 {
-   fx3_enqueueMessage((struct buffer**) &fx3MessageCenter.inbox, (struct buffer*) cmd);
+   fx3_enqueueMessage(&fx3MessageCenter.inbox, &cmd->element);
    bsp_scheduleContextSwitch();
 }
 
@@ -885,7 +889,7 @@ void fx3_sendMessage(struct task_control_block* tcb, struct buffer* buf)
     */
 
    // lock-free push buf into the stack pointed to by tcb->inbox
-   fx3_enqueueMessage((struct buffer**) &tcb->inbox, buf);
+   fx3_enqueueMessage(&tcb->inbox, &buf->element);
 
    // make tcb runnable if blocked on its queue
    if (TS_WAITING_FOR_MESSAGE == tcb->state)
@@ -906,7 +910,7 @@ struct buffer* fx3_waitForMessage(void)
    while (! thisTask->messageQueue)
    {
       // lock-free fetch the inbox variable and simultaneously reset it
-      struct buffer* todo = fx3_flushInbox((struct buffer**) &thisTask->inbox);
+      struct buffer* todo = (struct buffer*) fx3_flushInbox(&thisTask->inbox);
 
       if (todo)
       {
@@ -951,7 +955,7 @@ bool fx3_processPendingCommands(void)
    while (true)
    {
       // lock-free fetch the inbox variable and simultaneously reset it
-      struct fx3_command* todo = (struct fx3_command*) fx3_flushInbox((struct buffer**) &fx3MessageCenter.inbox);
+      struct fx3_command* todo = (struct fx3_command*) fx3_flushInbox(&fx3MessageCenter.inbox);
 
       if (! todo)
       {

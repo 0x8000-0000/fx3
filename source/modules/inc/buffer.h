@@ -27,6 +27,8 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+#include <list_utils.h>
+
 /**
  * @addtogroup Buffers
  * @{
@@ -34,7 +36,12 @@
 
 struct buffer
 {
-   struct buffer*    next;
+   /// @note must be the first element
+   union
+   {
+      struct buffer*          next;
+      struct list_element     element;
+   };
 
    uint16_t          capacity;
    uint16_t          size;

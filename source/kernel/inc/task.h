@@ -28,6 +28,7 @@
 #include <stdbool.h>
 
 #include <buffer.h>
+#include <list_utils.h>
 
 /** @mainpage FX3 RTOS
  *
@@ -94,7 +95,11 @@ struct task_control_block
    /** @privatesection */
 
    /// @note must be the first element  (synchronization uses it)
-   struct task_control_block*    next;          // used on a waiting list
+   union
+   {
+      struct task_control_block*    next;          // used on a waiting list
+      struct list_element           element;
+   };
 
    /// @note must be the second element (context_switch.S uses it)
    uint32_t*                     stackPointer;
@@ -144,7 +149,7 @@ struct task_control_block
    /// linked list of messages received
    volatile struct buffer*       inbox;
 
-   // linked list of received messages that are about to be processed
+   /// linked list of received messages that are about to be processed
    struct buffer*                messageQueue;
 };
 
