@@ -147,7 +147,7 @@ struct task_control_block
    struct task_control_block*    nextTaskInTheGreatLink;
 
    /// linked list of messages received
-   volatile struct buffer*       inbox;
+   volatile struct list_element*          inbox;
 
    /// linked list of received messages that are about to be processed
    struct buffer*                messageQueue;

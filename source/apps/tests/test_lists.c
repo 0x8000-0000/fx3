@@ -41,7 +41,7 @@ struct list_of_integers
    int value;
 };
 
-static struct list_element* theList = NULL;
+static volatile struct list_element* theList = NULL;
 
 static struct list_of_integers one, three, five;
 
@@ -57,7 +57,7 @@ static void testLists(const void* arg __attribute__((unused)))
    lst_pushElement(&theList, &three.element);
    lst_pushElement(&theList, &five.element);
 
-   assert(3 == lst_computeLength(theList));
+   assert(3 == lst_computeLength((struct list_element*) theList));
    
    otherList = lst_fetchAll(&theList);
    

@@ -31,13 +31,13 @@
  * @{
  */
 
-struct task_control_block;
+struct list_element;
 
 struct semaphore
 {
    uint32_t counter;
 
-   struct task_control_block* antechamber;
+   volatile struct list_element* antechamber;
 
    struct task_control_block* waitList;
 };

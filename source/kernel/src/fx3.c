@@ -89,7 +89,7 @@ static struct fx3_message_center
    /// bitmap
    volatile uint32_t          available;
 
-   struct fx3_command*        inbox;
+   volatile struct list_element*       inbox;
 
 }  fx3MessageCenter;
 
