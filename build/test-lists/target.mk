@@ -1,5 +1,5 @@
 # @file Makefile
-# @brief Build file fragment for hardware test apps
+# @brief Build file fragment for app to test lists operations
 # @author Florin Iucha <florin@signbit.net>
 # @copyright Apache License, Version 2.0
 
@@ -17,30 +17,5 @@
 #
 # This file is part of FX3 RTOS for ARM Cortex-M4
 
+$(eval $(call TARGET_template,TEST_LISTS,STM32F4DISCOVERY,SEGGER_RTT))
 
-APP_CHARGEN_TARGET:=chargen
-
-APP_CHARGEN_OBJECTS:=chargen.o
-
-APP_CHARGEN_C_VPATH:=source/apps/tests
-
-
-APP_HELLO_WORLD_TARGET:=hello
-
-APP_HELLO_WORLD_OBJECTS:=hello_world.o
-
-APP_HELLO_WORLD_C_VPATH:=source/apps/tests
-
-
-APP_ECHO_TARGET:=echo
-
-APP_ECHO_OBJECTS:=echo.o
-
-APP_ECHO_C_VPATH:=source/apps/tests
-
-
-APP_TEST_LISTS_TARGET:=test_lists
-
-APP_TEST_LISTS_OBJECTS:=test_lists.o
-
-APP_TEST_LISTS_C_VPATH:=source/apps/tests
