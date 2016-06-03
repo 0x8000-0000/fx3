@@ -114,6 +114,7 @@ struct USARTHandle
    struct CircularBuffer      receiveBuffer;
    struct semaphore           receiveBufferNotEmpty;
    uint32_t                   receiveBufferOverflow;
+   bool                       readerIsWaiting;
 };
 
 #define CONSOLE_USART usart2

@@ -172,6 +172,8 @@ enum Status usart_waitForReadable(struct USARTHandle* handle, uint32_t* bytesAva
 {
    if (handle->receiveBuffer.tail == handle->receiveBuffer.head)
    {
+      handle->readerIsWaiting = true;
+
       fx3_waitOnSemaphore(&handle->receiveBufferNotEmpty);
    }
 
@@ -363,7 +365,11 @@ enum Status usart_write(struct USARTHandle* handle, const uint8_t* buffer, uint3
 
 static void usart_onDataAvailable(struct USARTHandle* handle)
 {
-   fx3_signalSemaphore(&handle->receiveBufferNotEmpty);
+   if (handle->readerIsWaiting)
+   {
+      handle->readerIsWaiting = false;
+      fx3_signalSemaphore(&handle->receiveBufferNotEmpty);
+   }
 }
 
 static void usart_handleIRQ(struct USARTHandle* handle)
