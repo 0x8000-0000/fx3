@@ -1,5 +1,5 @@
 /**
- * @file chargen.c
+ * @file echo.c
  * @brief Test UART input and output
  * @author Florin Iucha <florin@signbit.net>
  * @copyright Apache License, Version 2.0
@@ -50,7 +50,7 @@ static uint32_t bytesAvailable;
 static uint32_t bytesRead;
 static uint32_t bytesWritten;
 
-static void emitBytes(const void* arg)
+static void echoInput(const void* arg)
 {
    struct USARTHandle* usart = (struct USARTHandle*) arg;
 
@@ -83,8 +83,8 @@ extern struct USARTHandle usart2;
 
 static const struct task_config echoTaskConfig =
 {
-   .name            = "Emit Bytes",
-   .handler         = emitBytes,
+   .name            = "Echo",
+   .handler         = echoInput,
    .argument        = &CONSOLE_USART,
    .priority        = 4,
    .stackBase       = echoStack,
