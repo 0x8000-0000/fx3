@@ -102,6 +102,20 @@ static inline void lst_mergeListIntoSortedList(struct list_element** listHead, s
    }
 }
 
+/** Push 'buf' into the message stack pointed to by head.
+ *
+ * @note the type of head is really 'struct list_element**', but we use the same
+ * routines with many types of lists containers, so this avoids excessive casting
+ */
+void lst_pushElement(void* head, struct list_element* buf);
+
+/** Reset *head and return old value.
+ *
+ * @note the type of head is really 'struct list_element**', but we use the same
+ * routines with many types of lists containers, so this avoids excessive casting
+ */
+struct list_element* lst_fetchAll(void* head);
+
 #ifdef __cplusplus
 }
 #endif

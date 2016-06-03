@@ -35,19 +35,5 @@ void fx3_readyTask(struct task_control_block* tcb);
 
 struct task_control_block* fx3_getRunningTask(void);
 
-/** Push 'buf' into the message stack pointed to by head.
- *
- * @note the type of head is really 'struct list_element**', but we use the same
- * routines with many types of lists containers, so this avoids excessive casting
- */
-void fx3_enqueueMessage(void* head, struct list_element* buf);
-
-/** Reset *head and return old value.
- *
- * @note the type of head is really 'struct list_element**', but we use the same
- * routines with many types of lists containers, so this avoids excessive casting
- */
-struct list_element* fx3_flushInbox(void* head);
-
 #endif // __FX3_TASK_PRIV_H__
 

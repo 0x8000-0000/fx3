@@ -111,7 +111,7 @@ static inline struct fx3_command* allocateFX3Command(void)
 
 static inline void postFX3Command(struct fx3_command* cmd)
 {
-   fx3_enqueueMessage(&fx3MessageCenter.inbox, &cmd->element);
+   lst_pushElement(&fx3MessageCenter.inbox, &cmd->element);
    bsp_scheduleContextSwitch();
 }
 
@@ -892,7 +892,7 @@ void fx3_sendMessage(struct task_control_block* tcb, struct buffer* buf)
     */
 
    // lock-free push buf into the stack pointed to by tcb->inbox
-   fx3_enqueueMessage(&tcb->inbox, &buf->element);
+   lst_pushElement(&tcb->inbox, &buf->element);
 
    // make tcb runnable if blocked on its queue
    if (TS_WAITING_FOR_MESSAGE == tcb->state)
@@ -913,7 +913,7 @@ struct buffer* fx3_waitForMessage(void)
    while (! thisTask->messageQueue)
    {
       // lock-free fetch the inbox variable and simultaneously reset it
-      struct buffer* todo = (struct buffer*) fx3_flushInbox(&thisTask->inbox);
+      struct buffer* todo = (struct buffer*) lst_fetchAll(&thisTask->inbox);
 
       if (todo)
       {
@@ -973,7 +973,7 @@ static bool handleSemaphoreSignal(struct fx3_command* cmd)
    bool runningTaskDethroned = false;
 
    // fetch late arrivals
-   struct list_element* todo = fx3_flushInbox(&sem->antechamber);
+   struct list_element* todo = lst_fetchAll(&sem->antechamber);
 
    assert(lst_isSortedAscending(&sem->waitList->element, compareTaskPriorities));
 
@@ -1018,7 +1018,7 @@ bool fx3_processPendingCommands(void)
    while (true)
    {
       // lock-free fetch the inbox variable and simultaneously reset it
-      struct fx3_command* todo = (struct fx3_command*) fx3_flushInbox(&fx3MessageCenter.inbox);
+      struct fx3_command* todo = (struct fx3_command*) lst_fetchAll(&fx3MessageCenter.inbox);
 
       if (! todo)
       {
@@ -1107,7 +1107,7 @@ void fx3impl_enqueueTaskOnSemaphore(struct semaphore* sem)
    runningTask->waitingOn = sem;
    runningTask->state     = TS_WAITING_FOR_SEMAPHORE;
 
-   fx3_enqueueMessage(&sem->antechamber, &runningTask->element);
+   lst_pushElement(&sem->antechamber, &runningTask->element);
 
    bsp_scheduleContextSwitch();
 }

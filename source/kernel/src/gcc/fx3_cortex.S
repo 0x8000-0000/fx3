@@ -29,10 +29,10 @@
          .align    2
 
          .thumb_func
-         .type     fx3_enqueueMessage, %function
+         .type     lst_pushElement, %function
          .code     16
-         .global   fx3_enqueueMessage
-fx3_enqueueMessage:
+         .global   lst_pushElement
+lst_pushElement:
          .fnstart
          .cantunwind
 
@@ -40,18 +40,18 @@ fx3_enqueueMessage:
          STR      R3, [R1]
          STREX    R2, R1, [R0]
          CMP      R2, #1
-         BEQ      fx3_enqueueMessage
+         BEQ      lst_pushElement
 
          BX       LR
 
          .fnend
-         .size    fx3_enqueueMessage, . - fx3_enqueueMessage
+         .size    lst_pushElement, . - lst_pushElement
 
          .thumb_func
-         .type     fx3_flushInbox, %function
+         .type     lst_fetchAll, %function
          .code     16
-         .global   fx3_flushInbox
-fx3_flushInbox:
+         .global   lst_fetchAll
+lst_fetchAll:
          .fnstart
          .cantunwind
 
@@ -59,12 +59,13 @@ fx3_flushInbox:
          LDREX    R1, [R0]
          STREX    R2, R3, [R0]
          CMP      R2, #1
-         BEQ      fx3_flushInbox
+         BEQ      lst_fetchAll
 
          MOV      R0, R1
          BX       LR
 
          .fnend
-         .size    fx3_flushInbox, . - fx3_flushInbox
+         .size    lst_fetchAll, . - lst_fetchAll
 
          .end
+
