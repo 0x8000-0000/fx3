@@ -141,7 +141,11 @@ enum Status usart_read(struct USARTHandle* handle, uint8_t* buffer, uint32_t buf
 
    if (realHead > realTail)
    {
-      const uint32_t endZoneSize = receiveBuffer->size - realHead;
+      uint32_t endZoneSize = receiveBuffer->size - realHead;
+      if (endZoneSize > bufferSize)
+      {
+         endZoneSize = bufferSize;
+      }
 
       memcpy(buffer, handle->receiveBuffer.data + realHead, endZoneSize);
 
@@ -154,9 +158,12 @@ enum Status usart_read(struct USARTHandle* handle, uint8_t* buffer, uint32_t buf
       realHead   = 0;
    }
 
-   memcpy(buffer, receiveBuffer->data + realHead, bufferSize);
-   *bytesRead          += bufferSize;
-   receiveBuffer->head += bufferSize;
+   if (bufferSize)
+   {
+      memcpy(buffer, receiveBuffer->data + realHead, bufferSize);
+      *bytesRead          += bufferSize;
+      receiveBuffer->head += bufferSize;
+   }
 
    return STATUS_OK;
 }
