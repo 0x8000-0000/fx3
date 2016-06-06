@@ -142,6 +142,8 @@ struct task_control_block* nextRunningTask;
 static uint32_t* runnableTasksMemPool[FX3_MAX_TASK_COUNT + 2];
 static struct priority_queue runnableTasks;
 
+static struct task_control_block* allValidTaskControlBlocks[FX3_MAX_TASK_COUNT];
+
 static struct fx3_timer
 {
    struct task_control_block* firstSleepingTaskToAwake;
@@ -293,6 +295,23 @@ static void verifyTaskControlBlocks(bool expectTaskInRunningState)
       while (peerPriorityTask != tcb);
 
       tcb = tcb->nextTaskInTheGreatLink;
+
+      /*
+       * verify tcb points to a valid task
+       */
+      uint32_t tt = 0;
+      while (tt < tasksCreated_count)
+      {
+         if (allValidTaskControlBlocks[tt] == tcb)
+         {
+            break;
+         }
+         else
+         {
+            tt ++;
+         }
+      }
+      assert(tt < tasksCreated_count);
    }
    while (&idleTask != tcb);
 
@@ -343,6 +362,7 @@ void fx3_initialize(void)
 #endif
 
    prq_initialize(&runnableTasks, runnableTasksMemPool, FX3_MAX_TASK_COUNT + 2);
+   memset(allValidTaskControlBlocks, 0, sizeof(allValidTaskControlBlocks));
 
    prq_initialize(&fx3Timer.sleepingTasks_0, fx3Timer.sleepingTasksMemPool_0, FX3_MAX_TASK_COUNT + 1);
    prq_initialize(&fx3Timer.sleepingTasks_1, fx3Timer.sleepingTasksMemPool_1, FX3_MAX_TASK_COUNT + 1);
@@ -364,6 +384,8 @@ void fx3_initialize(void)
 
 void createTaskImpl(struct task_control_block* tcb, const struct task_config* config, uint32_t* stackPointer, const void* argument)
 {
+   allValidTaskControlBlocks[tasksCreated_count] = tcb;
+
    tasksCreated_count ++;
 
    tcb->id = tasksCreated_count;
