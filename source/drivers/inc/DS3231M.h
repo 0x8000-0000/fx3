@@ -1,6 +1,6 @@
 /**
- * @file status.h
- * @brief Driver operation status
+ * @file DS3231M.h
+ * @brief Driver for Maxim DS3231M RTC
  * @author Florin Iucha <florin@signbit.net>
  * @copyright Apache License, Version 2.0
  */
@@ -21,19 +21,21 @@
  * This file is part of FX3 RTOS for ARM Cortex-M4
  */
 
-#ifndef __STATUS_H__
-#define __STATUS_H__
+#ifndef __DS3231M_H__
+#define __DS3231M_H__
 
-enum Status
-{
-   STATUS_OK,
-   STATUS_NOT_IMPLEMENTED,
-   STATUS_NOT_SUPPORTED,
-   STATUS_INVALID_ARGUMENT,
-   STATUS_INTERRUPTED,
-   STATUS_FULL,
-   STATUS_COMMUNICATION_FAILED,
-};
+#include <stdint.h>
+#include <time.h>
 
-#endif // __STATUS_H__
+#include <status.h>
+
+void DS3231M_initialize(void);
+
+enum Status DS3231M_getTemperature(float* temperature);
+
+enum Status DS3231M_getTime(struct tm* dsTime);
+
+enum Status DS3231M_setTime(struct tm* dsTime);
+
+#endif //__DS3231M_H__
 

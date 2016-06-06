@@ -165,6 +165,81 @@ static void initializeUART(void)
    }
 }
 
+#if 0
+static void bsp_delay(uint32_t count)
+{
+   volatile uint32_t todo = 0;
+   while (count)
+   {
+      todo = count;
+      count --;
+   }
+}
+#endif
+
+struct I2CHandle i2c1;
+struct I2CHandle i2c2;
+
+static void initializeI2C()
+{
+   // I2C1
+   {
+      memset(&i2c1, 0, sizeof(i2c1));
+
+      __HAL_RCC_GPIOB_CLK_ENABLE();
+      static const GPIO_InitTypeDef GPIO_InitStruct =
+      {
+         .Pin       = GPIO_PIN_6 | GPIO_PIN_9,
+         .Mode      = GPIO_MODE_AF_OD,
+         .Pull      = GPIO_PULLUP,
+         .Speed     = GPIO_SPEED_FAST,
+         .Alternate = GPIO_AF4_I2C1,
+      };
+      HAL_GPIO_Init(GPIOB, (GPIO_InitTypeDef*) &GPIO_InitStruct);
+
+      __HAL_RCC_I2C1_CLK_ENABLE();
+
+#if 0
+      // some code samples show a force reset
+      __HAL_RCC_I2C1_FORCE_RESET();
+      bsp_delay(128);
+      __HAL_RCC_I2C1_RELEASE_RESET();
+#endif
+
+      i2c1.hi2c.Instance = I2C1;
+      i2c1.evIRQ         = I2C1_EV_IRQn;
+      i2c1.erIRQ         = I2C1_ER_IRQn;
+   }
+
+   // I2C2
+   {
+      memset(&i2c2, 0, sizeof(i2c2));
+
+      __HAL_RCC_GPIOB_CLK_ENABLE();
+      static const GPIO_InitTypeDef GPIO_InitStruct =
+      {
+         .Pin       = GPIO_PIN_10 | GPIO_PIN_11,
+         .Mode      = GPIO_MODE_AF_OD,
+         .Pull      = GPIO_PULLUP,
+         .Speed     = GPIO_SPEED_HIGH,
+         .Alternate = GPIO_AF4_I2C2,
+      };
+      HAL_GPIO_Init(GPIOB, (GPIO_InitTypeDef*) &GPIO_InitStruct);
+
+      __HAL_RCC_I2C2_CLK_ENABLE();
+
+#if 0
+      __HAL_RCC_I2C2_FORCE_RESET();
+      bsp_delay(128);
+      __HAL_RCC_I2C2_RELEASE_RESET();
+#endif
+
+      i2c2.hi2c.Instance = I2C2;
+      i2c2.evIRQ         = I2C2_EV_IRQn;
+      i2c2.erIRQ         = I2C2_ER_IRQn;
+   }
+}
+
 void bsp_initialize(void)
 {
    chp_initialize();
@@ -176,13 +251,15 @@ void bsp_initialize(void)
    initializeLEDs();
 
    initializeUART();
+
+   initializeI2C();
 }
 
 void bsp_turnOnLED(uint32_t ledId)
 {
    if (LED_COUNT > ledId)
    {
-      HAL_GPIO_WritePin(GPIOD, (GPIO_PIN_12 << ledId), GPIO_PIN_RESET);
+      HAL_GPIO_WritePin(GPIOD, (GPIO_PIN_12 << ledId), GPIO_PIN_SET);
    }
 }
 
@@ -190,7 +267,15 @@ void bsp_turnOffLED(uint32_t ledId)
 {
    if (LED_COUNT > ledId)
    {
-      HAL_GPIO_WritePin(GPIOD, (GPIO_PIN_12 << ledId), GPIO_PIN_SET);
+      HAL_GPIO_WritePin(GPIOD, (GPIO_PIN_12 << ledId), GPIO_PIN_RESET);
+   }
+}
+
+void bsp_toggleLED(uint32_t ledId)
+{
+   if (LED_COUNT > ledId)
+   {
+      HAL_GPIO_TogglePin(GPIOD, (GPIO_PIN_12 << ledId));
    }
 }
 

@@ -1,6 +1,6 @@
 /**
  * @file stm32f4_driver_usart.c
- * @brief USART driver implmementation for STM32F4 chips
+ * @brief USART driver implementation for STM32F4 chips
  * @author Florin Iucha <florin@signbit.net>
  * @copyright Apache License, Version 2.0
  */

@@ -119,5 +119,19 @@ struct USARTHandle
 
 #define CONSOLE_USART usart2
 
+struct I2CHandle
+{
+   I2C_HandleTypeDef          hi2c;
+
+   IRQn_Type                  evIRQ;
+   IRQn_Type                  erIRQ;
+
+   struct semaphore           isAvailable;
+};
+
+#define MPU_6050_BUS    i2c2
+#define DS3231M_BUS     i2c2
+#define BMP085_BUS      i2c2
+
 #endif // __BOARD_LOCAL_H__
 

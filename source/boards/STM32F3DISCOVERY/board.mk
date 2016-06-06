@@ -40,6 +40,7 @@ BOARD_STM32F3DISCOVERY_OBJECTS:=\
 	stm32f3xx_hal_pwr.o \
 	stm32f3xx_hal_rcc.o \
 	stm32f3xx_hal_gpio.o \
+	stm32f3xx_hal_i2c.o \
 	startup_stm32f303xc.o
 
 BOARD_STM32F3DISCOVERY_OPENOCD_BOARD_SCRIPT:=$(BOARD_STM32F3DISCOVERY_DIR)/board/stm32f3discovery.cfg

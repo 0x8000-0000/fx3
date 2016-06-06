@@ -3,6 +3,13 @@
 All notable changes to this project will be documented in this file.
 This project adheres to [Semantic Versioning](http://semver.org/).
 
+## vx.y.z (T-B-D)
+
+### Added
+
+   - I2C driver for STM32F4 boards
+   - Drivers for BMP085 (pressure sensor), DS3231M (real-time clock) and MPU-6050 (accelerometer / gyroscope)
+
 ## v0.4.0 (2016-06-02)
 
 ### Added

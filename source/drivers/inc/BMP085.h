@@ -1,6 +1,6 @@
 /**
- * @file status.h
- * @brief Driver operation status
+ * @file BMP085.h
+ * @brief Driver for Bosch Sensortech BMP085 Pressure Sensor
  * @author Florin Iucha <florin@signbit.net>
  * @copyright Apache License, Version 2.0
  */
@@ -21,19 +21,16 @@
  * This file is part of FX3 RTOS for ARM Cortex-M4
  */
 
-#ifndef __STATUS_H__
-#define __STATUS_H__
+#ifndef __BMP085_H__
+#define __BMP085_H__
 
-enum Status
-{
-   STATUS_OK,
-   STATUS_NOT_IMPLEMENTED,
-   STATUS_NOT_SUPPORTED,
-   STATUS_INVALID_ARGUMENT,
-   STATUS_INTERRUPTED,
-   STATUS_FULL,
-   STATUS_COMMUNICATION_FAILED,
-};
+#include <status.h>
 
-#endif // __STATUS_H__
+void BMP085_initialize(void);
+
+enum Status BMP085_getTemperature(float* temperature_C);
+
+enum Status BMP085_getPressure(int32_t* pressure_Pa);
+
+#endif // __BMP085_H__
 

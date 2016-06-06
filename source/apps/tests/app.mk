@@ -44,3 +44,24 @@ APP_TEST_LISTS_TARGET:=test_lists
 APP_TEST_LISTS_OBJECTS:=test_lists.o
 
 APP_TEST_LISTS_C_VPATH:=source/apps/tests
+
+
+APP_MPU_6050_TARGET:=mpu_6050
+
+APP_MPU_6050_OBJECTS:=test_mpu_6050.o MPU-6050.o
+
+APP_MPU_6050_C_VPATH:=source/apps/tests
+
+
+APP_DS3231M_TARGET:=ds3231m
+
+APP_DS3231M_OBJECTS:=test_ds3231m.o DS3231M.o
+
+APP_DS3231M_C_VPATH:=source/apps/tests
+
+
+APP_BMP085_TARGET:=bmp085
+
+APP_BMP085_OBJECTS:=test_bmp085.o BMP085.o
+
+APP_BMP085_C_VPATH:=source/apps/tests
