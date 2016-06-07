@@ -1,6 +1,6 @@
 /**
- * @file status.h
- * @brief Driver operation status
+ * @file mems.h
+ * @brief Data structures for MEMS
  * @author Florin Iucha <florin@signbit.net>
  * @copyright Apache License, Version 2.0
  */
@@ -21,20 +21,31 @@
  * This file is part of FX3 RTOS for ARM Cortex-M4
  */
 
-#ifndef __STATUS_H__
-#define __STATUS_H__
+#ifndef __MEMS_H__
+#define __MEMS_H__
 
-enum Status
+struct acceleration
 {
-   STATUS_OK,
-   STATUS_NOT_IMPLEMENTED,
-   STATUS_NOT_SUPPORTED,
-   STATUS_INVALID_ARGUMENT,
-   STATUS_INTERRUPTED,
-   STATUS_FULL,
-   STATUS_COMMUNICATION_FAILED,
-   STATUS_HARDWARE_CONFIGURATION_FAILED,
+   float x_g;
+   float y_g;
+   float z_g;
 };
 
-#endif // __STATUS_H__
+struct tilt
+{
+   float roll_deg;
+   float pitch_deg;
+   float yaw_deg;
+};
+
+void computeTilt(const struct acceleration* accel, struct tilt* tilt);
+
+struct rotation
+{
+   float x_deg;
+   float y_deg;
+   float z_deg;
+};
+
+#endif // __MEMS_H__
 

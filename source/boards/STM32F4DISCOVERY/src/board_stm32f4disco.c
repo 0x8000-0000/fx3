@@ -165,8 +165,7 @@ static void initializeUART(void)
    }
 }
 
-#if 0
-static void bsp_delay(uint32_t count)
+void bsp_delay(uint32_t count)
 {
    volatile uint32_t todo = 0;
    while (count)
@@ -175,7 +174,6 @@ static void bsp_delay(uint32_t count)
       count --;
    }
 }
-#endif
 
 struct I2CHandle i2c1;
 struct I2CHandle i2c2;
@@ -240,6 +238,68 @@ static void initializeI2C()
    }
 }
 
+struct SPIBus spiBus1;
+struct SPIBus spiBus2;
+
+static void initializeSPI()
+{
+   // SPI2
+   {
+      memset(&spiBus1, 0, sizeof(spiBus1));
+
+      __HAL_RCC_GPIOA_CLK_ENABLE();
+      static const GPIO_InitTypeDef GPIO_InitStruct =
+      {
+         .Pin       = GPIO_PIN_5 | GPIO_PIN_6 | GPIO_PIN_7,
+         .Mode      = GPIO_MODE_AF_PP,
+         .Pull      = GPIO_PULLDOWN,
+         .Speed     = GPIO_SPEED_MEDIUM,
+         .Alternate = GPIO_AF5_SPI1,
+      };
+      HAL_GPIO_Init(GPIOA, (GPIO_InitTypeDef*) &GPIO_InitStruct);
+
+      __HAL_RCC_SPI1_CLK_ENABLE();
+
+      spiBus1.halHandle.Instance = SPI1;
+   }
+
+   // SPI2
+   {
+      memset(&spiBus2, 0, sizeof(spiBus2));
+
+      __HAL_RCC_GPIOB_CLK_ENABLE();
+      static const GPIO_InitTypeDef GPIO_InitStruct =
+      {
+         .Pin       = GPIO_PIN_13 | GPIO_PIN_14 | GPIO_PIN_15,
+         .Mode      = GPIO_MODE_AF_PP,
+         .Pull      = GPIO_PULLDOWN,
+         .Speed     = GPIO_SPEED_MEDIUM,
+         .Alternate = GPIO_AF5_SPI2,
+      };
+      HAL_GPIO_Init(GPIOB, (GPIO_InitTypeDef*) &GPIO_InitStruct);
+
+      __HAL_RCC_SPI2_CLK_ENABLE();
+
+      spiBus2.halHandle.Instance = SPI2;
+   }
+}
+
+static void initializeChipSelects(void)
+{
+   __GPIOE_CLK_ENABLE();
+
+   static const GPIO_InitTypeDef GPIO_InitStruct =
+   {
+      .Pin   = GPIO_PIN_3 | GPIO_PIN_15,
+      .Mode  = GPIO_MODE_OUTPUT_PP,
+      .Pull  = GPIO_NOPULL,
+      .Speed = GPIO_SPEED_MEDIUM,
+   };
+   HAL_GPIO_Init(GPIOE, (GPIO_InitTypeDef*) &GPIO_InitStruct);
+
+   HAL_GPIO_WritePin(GPIOE, GPIO_PIN_3 | GPIO_PIN_15, GPIO_PIN_SET);
+}
+
 void bsp_initialize(void)
 {
    chp_initialize();
@@ -253,6 +313,10 @@ void bsp_initialize(void)
    initializeUART();
 
    initializeI2C();
+
+   initializeSPI();
+
+   initializeChipSelects();
 }
 
 void bsp_turnOnLED(uint32_t ledId)
@@ -288,5 +352,18 @@ void bsp_startMainClock(void)
     * 42000 will give us two ticks every millisecond
     */
    chp_initializeSystemTimer(42 * 1000 - 1);
+}
+
+void bsp_initializeOutputPin(uint32_t outputPin)
+{
+   bsp_setOutputPin(outputPin, true);
+}
+
+void bsp_setOutputPin(uint32_t outputPin, bool high)
+{
+   GPIO_TypeDef* gpio = (GPIO_TypeDef*) (outputPin & 0xffffff00);
+   uint32_t pin = outputPin & 0xff;
+   //HAL_GPIO_WritePin(gpio, (GPIO_PIN_0 << pin), high);
+   gpio->BSRR = (1 << (pin + 16 * (! high)));
 }
 

@@ -1,6 +1,6 @@
 /**
- * @file status.h
- * @brief Driver operation status
+ * @file EN25F80.h
+ * @brief Driver for Eon Silicon EN25F80 serial flash memory
  * @author Florin Iucha <florin@signbit.net>
  * @copyright Apache License, Version 2.0
  */
@@ -21,20 +21,27 @@
  * This file is part of FX3 RTOS for ARM Cortex-M4
  */
 
-#ifndef __STATUS_H__
-#define __STATUS_H__
+#ifndef __EN25F80_H__
+#define __EN25F80_H__
 
-enum Status
-{
-   STATUS_OK,
-   STATUS_NOT_IMPLEMENTED,
-   STATUS_NOT_SUPPORTED,
-   STATUS_INVALID_ARGUMENT,
-   STATUS_INTERRUPTED,
-   STATUS_FULL,
-   STATUS_COMMUNICATION_FAILED,
-   STATUS_HARDWARE_CONFIGURATION_FAILED,
-};
+#include <stdint.h>
 
-#endif // __STATUS_H__
+#include <status.h>
+
+enum Status EN25F80_initialize(void);
+
+enum Status EN25F80_getChipId(uint32_t* chipId);
+
+enum Status EN25F80_releaseFromDeepSleep(void);
+
+enum Status EN25F80_eraseChip(void);
+enum Status EN25F80_eraseSector(uint32_t address);
+
+enum Status EN25F80_enableWrite(void);
+enum Status EN25F80_disableWrite(void);
+
+enum Status EN25F80_readByte(uint32_t address, uint8_t* value);
+enum Status EN25F80_writeByte(uint32_t address, uint8_t value);
+
+#endif // __EN25F80_H__
 

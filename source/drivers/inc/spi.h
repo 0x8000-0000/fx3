@@ -1,6 +1,6 @@
 /**
- * @file status.h
- * @brief Driver operation status
+ * @file spi.h
+ * @brief SPI driver interface
  * @author Florin Iucha <florin@signbit.net>
  * @copyright Apache License, Version 2.0
  */
@@ -21,20 +21,30 @@
  * This file is part of FX3 RTOS for ARM Cortex-M4
  */
 
-#ifndef __STATUS_H__
-#define __STATUS_H__
+#ifndef __SPI_H__
+#define __SPI_H__
 
-enum Status
+#include <stdint.h>
+#include <stdbool.h>
+
+#include <status.h>
+
+struct SPIBus;
+
+struct SPIConfiguration
 {
-   STATUS_OK,
-   STATUS_NOT_IMPLEMENTED,
-   STATUS_NOT_SUPPORTED,
-   STATUS_INVALID_ARGUMENT,
-   STATUS_INTERRUPTED,
-   STATUS_FULL,
-   STATUS_COMMUNICATION_FAILED,
-   STATUS_HARDWARE_CONFIGURATION_FAILED,
+   uint32_t speed;
 };
 
-#endif // __STATUS_H__
+void spi_initialize(struct SPIBus* bus, const struct SPIConfiguration* config);
+
+enum Status spi_reserveBus(struct SPIBus* bus, bool polarity, bool phase);
+
+enum Status spi_releaseBus(struct SPIBus* bus);
+
+enum Status spi_read(struct SPIBus* bus, uint8_t* buffer, uint32_t bufferSize, uint32_t* bytesRead);
+
+enum Status spi_write(struct SPIBus* bus, const uint8_t* buffer, uint32_t bufferSize, uint32_t* bytesWritten);
+
+#endif // __SPI_H__
 

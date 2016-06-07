@@ -26,24 +26,11 @@
 
 #include <stdint.h>
 #include <status.h>
+#include <mems.h>
 
 enum Status mpu6050_initialize(void);
 
 enum Status mpu6050_getId(uint8_t* id);
-
-struct acceleration
-{
-   float x_g;
-   float y_g;
-   float z_g;
-};
-
-struct rotation
-{
-   float x_deg;
-   float y_deg;
-   float z_deg;
-};
 
 enum Status mpu6050_getAcceleration(struct acceleration* accel);
 

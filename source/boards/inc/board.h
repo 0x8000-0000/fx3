@@ -45,6 +45,9 @@ void bsp_startMultitasking(uint32_t firstPSP, void (* firstHandler)(const void* 
 
 void bsp_sleep(void);
 
+// busy-loop
+void bsp_delay(uint32_t loops);
+
 /**
  * @}
  */
@@ -58,6 +61,10 @@ void bsp_turnOnLED(uint32_t ledId);
 void bsp_turnOffLED(uint32_t ledId);
 
 void bsp_toggleLED(uint32_t ledId);
+
+void bsp_initializeOutputPin(uint32_t outputPin);
+
+void bsp_setOutputPin(uint32_t outputPin, bool high);
 
 /**
  * @}

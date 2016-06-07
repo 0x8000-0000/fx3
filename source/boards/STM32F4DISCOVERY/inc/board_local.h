@@ -88,6 +88,17 @@ enum BOARD_LED
    LED_COUNT,
 };
 
+/*
+ * Take advantage that the bottom 8 bits are 0
+ */
+#define PIN(port, pin) ((AHB1PERIPH_BASE + (0x0400U * (port - 'A'))) | (pin))
+
+#if 0
+   _Static_assert(port >= 'A', "invalid port");
+   _Static_assert(port <= 'I', "invalid port");
+   _Static_assert(pin < 16, "invalid pin");
+#endif
+
 struct USARTHandle
 {
    UART_HandleTypeDef         huart;
@@ -132,6 +143,19 @@ struct I2CHandle
 #define MPU_6050_BUS    i2c2
 #define DS3231M_BUS     i2c2
 #define BMP085_BUS      i2c2
+
+struct SPIBus
+{
+   SPI_HandleTypeDef          halHandle;
+
+   struct semaphore           isAvailable;
+};
+
+#define EN25F80_BUS           spiBus2
+#define EN25F80_CHIP_SELECT   PIN('E', 15)
+
+#define LIS3DSH_BUS           spiBus1
+#define LIS3DSH_CHIP_SELECT   PIN('E', 3)
 
 #endif // __BOARD_LOCAL_H__
 

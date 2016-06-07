@@ -40,6 +40,7 @@ BOARD_STM32F4DISCOVERY_OBJECTS:=\
 	board_stm32f4disco.o \
 	stm32f4_driver_usart.o \
 	stm32f4_driver_i2c.o \
+	stm32f4_driver_spi.o \
 	bitops.o \
 	system_stm32f4xx.o \
 	stm32f4xx_hal.o \
@@ -50,6 +51,7 @@ BOARD_STM32F4DISCOVERY_OBJECTS:=\
 	stm32f4xx_hal_uart.o \
 	stm32f4xx_hal_dma.o \
 	stm32f4xx_hal_i2c.o \
+	stm32f4xx_hal_spi.o \
 	startup_stm32f407xx.o \
 
 BOARD_STM32F4DISCOVERY_OPENOCD_BOARD_SCRIPT:=board/stm32f4discovery.cfg
