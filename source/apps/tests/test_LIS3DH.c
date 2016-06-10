@@ -50,6 +50,7 @@ static const struct SPIConfiguration spiConfig =
 };
 
 #define DISPLAY_RAW_VALUES 1
+#define COMPUTE_TILT
 
 static const uint8_t APP_BANNER[] = "Test LIS3DH application\r\n"
 #ifdef DISPLAY_RAW_VALUES
@@ -70,7 +71,6 @@ static uint8_t sensitivity;
 static uint8_t dataStatus;
 
 #define USE_LIS3DH_FIFO
-#define COMPUTE_TILT
 
 static struct LIS3DH_rawData rawAccel[LIS3DH_FIFO_SIZE];
 static uint32_t valueCount;
@@ -130,18 +130,22 @@ static void testHandler(const void* arg)
 #endif
 #endif
 
+            len = snprintf(outBuffer, sizeof(outBuffer), "%9.7f,%9.7f,%9.7f"
+#ifndef COMPUTE_TILT
+                           "\r\n"
+#endif
+                           , accel.x_g, accel.y_g, accel.z_g);
+            status = usart_write(usart, (const uint8_t*) outBuffer, (uint32_t) len, &bytesWritten);
+            assert(STATUS_OK == status);
+            assert((uint32_t) len == bytesWritten);
+
 #ifdef COMPUTE_TILT
             computeTilt(&accel, &tilt);
-            len = snprintf(outBuffer, sizeof(outBuffer), ",%9.5f,%9.5f", tilt.pitch_deg, tilt.roll_deg);
+            len = snprintf(outBuffer, sizeof(outBuffer), ",%9.5f,%9.5f\r\n", tilt.pitch_deg, tilt.roll_deg);
             status = usart_write(usart, (const uint8_t*) outBuffer, (uint32_t) len, &bytesWritten);
             assert(STATUS_OK == status);
             assert((uint32_t) len == bytesWritten);
 #endif
-
-            len = snprintf(outBuffer, sizeof(outBuffer), "%9.7f,%9.7f,%9.7f\r\n", accel.x_g, accel.y_g, accel.z_g);
-            status = usart_write(usart, (const uint8_t*) outBuffer, (uint32_t) len, &bytesWritten);
-            assert(STATUS_OK == status);
-            assert((uint32_t) len == bytesWritten);
 
             bsp_toggleLED(LED_ID_GREEN);
          }
@@ -163,7 +167,7 @@ extern struct SPIBus LIS3DH_BUS;
 
 static const struct task_config testConfig =
 {
-   .name            = "Test MPU-6050",
+   .name            = "Test Handler",
    .handler         = testHandler,
    .argument        = &CONSOLE_USART,
    .priority        = 4,
