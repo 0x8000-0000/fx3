@@ -35,7 +35,9 @@
 
 void computeTilt(const struct acceleration* accel, struct tilt* tilt)
 {
-   (void) accel;
-   (void) tilt;
+   tilt->roll_deg  = atan2f(accel->y_g, accel->z_g) * 57.3;
+   float denom = sqrtf(accel->y_g * accel->y_g + accel->z_g * accel->z_g);
+   tilt->pitch_deg = atan2f((- accel->x_g), denom) * 57.3;
+   tilt->yaw_deg   = 0; // need magnetometer input
 }
 

@@ -1,6 +1,6 @@
 /**
- * @file LIS3DSH.h
- * @brief Driver for ST LIS3DSH accelerometer
+ * @file LIS3DH.h
+ * @brief Driver for ST LIS3DH accelerometer
  * @author Florin Iucha <florin@signbit.net>
  * @copyright Apache License, Version 2.0
  */
@@ -21,37 +21,37 @@
  * This file is part of FX3 RTOS for ARM Cortex-M4
  */
 
-#ifndef __LIS3DSH_H__
-#define __LIS3DSH_H__
+#ifndef __LIS3DH_H__
+#define __LIS3DH_H__
 
 #include <stdint.h>
 #include <status.h>
 #include <mems.h>
 
-enum Status LIS3DSH_initialize(void);
+enum Status LIS3DH_initialize(void);
 
-enum Status LIS3DSH_getChipId(uint32_t* expectedId, uint32_t* actualId);
+enum Status LIS3DH_getChipId(uint32_t* expectedId, uint32_t* actualId);
 
-struct LIS3DSH_rawData
+struct LIS3DH_rawData
 {
    int16_t x;
    int16_t y;
    int16_t z;
 };
 
-enum Status LIS3DSH_getSensitivity(uint8_t* sensitivity);
+enum Status LIS3DH_getSensitivity(uint8_t* sensitivity);
 
-enum Status LIS3DSH_getRawCounts(uint8_t* dataStatus, struct LIS3DSH_rawData* rawData);
+enum Status LIS3DH_getRawCounts(uint8_t* dataStatus, struct LIS3DH_rawData* rawData);
 
-void LIS3DSH_computeAcceleration(const struct LIS3DSH_rawData* rawData, uint32_t dataSize, uint8_t sensitivity, struct acceleration* accel);
+void LIS3DH_computeAcceleration(const struct LIS3DH_rawData* rawData, uint32_t dataSize, uint8_t sensitivity, struct acceleration* accel);
 
-enum Status LIS3DSH_enableFIFO(void);
+enum Status LIS3DH_enableFIFO(void);
 
-enum Status LIS3DSH_disableFIFO(void);
+enum Status LIS3DH_disableFIFO(void);
 
-enum Status LIS3DSH_readFIFO(struct LIS3DSH_rawData* data, uint32_t capacity, uint32_t* valuesCount);
+enum Status LIS3DH_readFIFO(struct LIS3DH_rawData* data, uint32_t capacity, uint32_t* valuesCount);
 
-#define LIS3DSH_FIFO_SIZE 32
+#define LIS3DH_FIFO_SIZE 32
 
-#endif // __LIS3DSH_H__
+#endif // __LIS3DH_H__
 

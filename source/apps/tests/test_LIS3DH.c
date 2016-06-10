@@ -1,6 +1,6 @@
 /**
- * @file test_LIS3DSH.c
- * @brief Test LIS3DSH driver
+ * @file test_LIS3DH.c
+ * @brief Test LIS3DH driver
  * @author Florin Iucha <florin@signbit.net>
  * @copyright Apache License, Version 2.0
  */
@@ -32,7 +32,7 @@
 #include <usart.h>
 #include <spi.h>
 
-#include <LIS3DSH.h>
+#include <LIS3DH.h>
 #include <mems.h>
 
 static const struct USARTConfiguration usartConfig =
@@ -51,7 +51,7 @@ static const struct SPIConfiguration spiConfig =
 
 #define DISPLAY_RAW_VALUES 1
 
-static const uint8_t APP_BANNER[] = "Test LIS3DSH application\r\n"
+static const uint8_t APP_BANNER[] = "Test LIS3DH application\r\n"
 #ifdef DISPLAY_RAW_VALUES
    "s,rx,ry,rz,"
 #endif
@@ -69,10 +69,10 @@ static volatile uint32_t actualChipId;
 static uint8_t sensitivity;
 static uint8_t dataStatus;
 
-#define USE_LIS3DSH_FIFO
+#define USE_LIS3DH_FIFO
 #define COMPUTE_TILT
 
-static struct LIS3DSH_rawData rawAccel[LIS3DSH_FIFO_SIZE];
+static struct LIS3DH_rawData rawAccel[LIS3DH_FIFO_SIZE];
 static uint32_t valueCount;
 
 static struct acceleration accel;
@@ -89,14 +89,14 @@ static void testHandler(const void* arg)
    assert(STATUS_OK == status);
    assert((sizeof(APP_BANNER) - 1) == bytesWritten);
 
-   status = LIS3DSH_initialize();
+   status = LIS3DH_initialize();
 
-   status = LIS3DSH_getChipId((uint32_t*) &expectedChipId, (uint32_t*) &actualChipId);
+   status = LIS3DH_getChipId((uint32_t*) &expectedChipId, (uint32_t*) &actualChipId);
 
-   LIS3DSH_getSensitivity(&sensitivity);
+   LIS3DH_getSensitivity(&sensitivity);
 
-#ifdef USE_LIS3DSH_FIFO
-   status = LIS3DSH_enableFIFO();
+#ifdef USE_LIS3DH_FIFO
+   status = LIS3DH_enableFIFO();
    fx3_suspendTask(200);   // give us time to read something
 #endif
 
@@ -106,24 +106,24 @@ static void testHandler(const void* arg)
       {
          valueCount = 1;
 
-#ifdef USE_LIS3DSH_FIFO
+#ifdef USE_LIS3DH_FIFO
          memset(rawAccel, 0, sizeof(rawAccel));
-         status = LIS3DSH_readFIFO(rawAccel, LIS3DSH_FIFO_SIZE, &valueCount);
-         assert(valueCount <= LIS3DSH_FIFO_SIZE);
+         status = LIS3DH_readFIFO(rawAccel, LIS3DH_FIFO_SIZE, &valueCount);
+         assert(valueCount <= LIS3DH_FIFO_SIZE);
 #else
-         status = LIS3DSH_getRawCounts(&dataStatus, rawAccel);
+         status = LIS3DH_getRawCounts(&dataStatus, rawAccel);
 #endif
 
          if (STATUS_OK == status)
          {
-            LIS3DSH_computeAcceleration(rawAccel, valueCount, sensitivity, &accel);
+            LIS3DH_computeAcceleration(rawAccel, valueCount, sensitivity, &accel);
 
             int len = 0;
 
-#ifndef USE_LIS3DSH_FIFO
-            struct LIS3DSH_rawData* data = &rawAccel[0];
+#ifndef USE_LIS3DH_FIFO
+            struct LIS3DH_rawData* data = &rawAccel[0];
 #ifdef DISPLAY_RAW_VALUES
-            len = snprintf(outBuffer, sizeof(outBuffer), "%u,%02x,%d,%d,%d,", sensitivity, dataStatus, (int) data->x, (int) data->y, (int) data->z);
+            len = snprintf(outBuffer, sizeof(outBuffer), "%u,%02x,%d,%d,%d", sensitivity, dataStatus, (int) data->x, (int) data->y, (int) data->z);
             status = usart_write(usart, (const uint8_t*) outBuffer, (uint32_t) len, &bytesWritten);
             assert(STATUS_OK == status);
             assert((uint32_t) len == bytesWritten);
@@ -159,7 +159,7 @@ static uint8_t testStack[2048] __attribute__ ((aligned (16)));
 
 extern struct USARTHandle CONSOLE_USART;
 
-extern struct SPIBus LIS3DSH_BUS;
+extern struct SPIBus LIS3DH_BUS;
 
 static const struct task_config testConfig =
 {
@@ -178,7 +178,7 @@ int main(void)
 {
    bsp_initialize();
    usart_initialize(&CONSOLE_USART, &usartConfig);
-   spi_initialize(&LIS3DSH_BUS, &spiConfig);
+   spi_initialize(&LIS3DH_BUS, &spiConfig);
 
    fx3_initialize();
 

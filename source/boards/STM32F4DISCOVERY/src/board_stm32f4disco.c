@@ -243,13 +243,14 @@ struct SPIBus spiBus2;
 
 static void initializeSPI()
 {
-   // SPI2
+   // SPI1
    {
       memset(&spiBus1, 0, sizeof(spiBus1));
 
       __HAL_RCC_GPIOA_CLK_ENABLE();
       static const GPIO_InitTypeDef GPIO_InitStruct =
       {
+         //           CLK          MISO         MOSI
          .Pin       = GPIO_PIN_5 | GPIO_PIN_6 | GPIO_PIN_7,
          .Mode      = GPIO_MODE_AF_PP,
          .Pull      = GPIO_PULLDOWN,
@@ -270,6 +271,7 @@ static void initializeSPI()
       __HAL_RCC_GPIOB_CLK_ENABLE();
       static const GPIO_InitTypeDef GPIO_InitStruct =
       {
+         //           CLK           MISO          MOSI
          .Pin       = GPIO_PIN_13 | GPIO_PIN_14 | GPIO_PIN_15,
          .Mode      = GPIO_MODE_AF_PP,
          .Pull      = GPIO_PULLDOWN,
@@ -288,16 +290,30 @@ static void initializeChipSelects(void)
 {
    __GPIOE_CLK_ENABLE();
 
-   static const GPIO_InitTypeDef GPIO_InitStruct =
    {
-      .Pin   = GPIO_PIN_3 | GPIO_PIN_15,
-      .Mode  = GPIO_MODE_OUTPUT_PP,
-      .Pull  = GPIO_NOPULL,
-      .Speed = GPIO_SPEED_MEDIUM,
-   };
-   HAL_GPIO_Init(GPIOE, (GPIO_InitTypeDef*) &GPIO_InitStruct);
+      static const GPIO_InitTypeDef GPIO_InitStruct =
+      {
+         .Pin   = GPIO_PIN_3 | GPIO_PIN_15,
+         .Mode  = GPIO_MODE_OUTPUT_PP,
+         .Pull  = GPIO_NOPULL,
+         .Speed = GPIO_SPEED_MEDIUM,
+      };
+      HAL_GPIO_Init(GPIOE, (GPIO_InitTypeDef*) &GPIO_InitStruct);
 
-   HAL_GPIO_WritePin(GPIOE, GPIO_PIN_3 | GPIO_PIN_15, GPIO_PIN_SET);
+      HAL_GPIO_WritePin(GPIOE, GPIO_PIN_3 | GPIO_PIN_15, GPIO_PIN_SET);
+   }
+
+   // INT2 on PE1 for Accelerometer
+   {
+      static const GPIO_InitTypeDef GPIO_InitStruct =
+      {
+         .Pin   = GPIO_PIN_0 | GPIO_PIN_1,
+         .Mode  = GPIO_MODE_IT_RISING,
+         .Pull  = GPIO_NOPULL,
+         .Speed = GPIO_SPEED_FAST,
+      };
+      HAL_GPIO_Init(GPIOE, (GPIO_InitTypeDef*) &GPIO_InitStruct);
+   }
 }
 
 void bsp_initialize(void)

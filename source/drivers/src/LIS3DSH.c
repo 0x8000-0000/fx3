@@ -34,6 +34,8 @@
  */
 
 #include <assert.h>
+#include <string.h>
+
 #include <task.h>
 #include <board.h>
 
@@ -42,12 +44,17 @@
 #include <LIS3DSH.h>
 
 #define READ_REGISTER_CMD      ((uint8_t) 0x80)
+#define MULTIPLE_SELECT        ((uint8_t) 0x40)
 
 enum LIS3DSH_register
 {
-   WHO_AM_I       = 0x0F,
-   CTRL_REG4_ADDR = 0x20,
+   REG_INFO1      = 0x0D,
+   REG_INFO2      = 0x0E,
+   REG_WHO_AM_I   = 0x0F,
 
+   CTRL_REG4_ADDR = 0x20,
+   CTRL_REG1_ADDR = 0x21,
+   CTRL_REG2_ADDR = 0x21,
    CTRL_REG3_ADDR = 0x23,
    CTRL_REG5_ADDR = 0x24,
    CTRL_REG6_ADDR = 0x25,
@@ -59,11 +66,20 @@ enum LIS3DSH_register
    OUT_Y_H_ADDR   = 0x2B,
    OUT_Z_L_ADDR   = 0x2C,
    OUT_Z_H_ADDR   = 0x2D,
+
+   FIFO_CTRL_REG  = 0x2E,
+   FIFO_SRC_REG   = 0x2F,
 };
 
 enum LIS3DSH_CTRL_REG3_bits
 {
-   REG3_STRT = 1,
+   REG3_DR_EN   = 0x80,
+   REG3_IEA     = 0x40,
+   REG3_IEL     = 0x20,
+   REG3_INT2_EN = 0x10,
+   REG3_INT1_EN = 0x08,
+   REG3_VFILT   = 0x04,
+   REG3_STRT    = 0x01,
 };
 
 enum LIS3DSH_CTRL_REG4_bits
@@ -97,14 +113,25 @@ enum LIS3DSH_CTRL_REG5_bits
 enum LIS3DSH_CTRL_REG6_bits
 {
    REG6_BOOT       = 0x80,
+   REG6_FIFO_EN    = 0x40,
    REG6_IF_ADD_INC = 0x10,
+   REG6_BOOT_INT2  = 0x01,
 };
 
-#define LIS3DSH_SENSITIVITY_0_06G            0.00006f /* 0.06 mg/digit */
-#define LIS3DSH_SENSITIVITY_0_12G            0.00012f /* 0.12 mg/digit */
-#define LIS3DSH_SENSITIVITY_0_18G            0.00018f /* 0.18 mg/digit */
-#define LIS3DSH_SENSITIVITY_0_24G            0.00024f /* 0.24 mg/digit */
-#define LIS3DSH_SENSITIVITY_0_73G            0.00073f /* 0.73 mg/digit */
+enum LIS3DSH_FIFO_CTRL_bits
+{
+   FIFO_CTRL_OFF        = 0x00,
+   FIFO_CTRL_ONE_SHOT   = 0x01 << 5,
+   FIFO_CTRL_CIRCULAR   = 0x02 << 5,
+};
+
+enum LIS3DSH_FIFO_SRC_bits
+{
+   FIFO_SRC_WTM          = 0x80,
+   FIFO_SRC_OVRN         = 0x40,
+   FIFO_SRC_EMPTY        = 0x20,
+   FIFO_SRC_SAMPLES_MASK = 0x1F,
+};
 
 extern struct SPIBus LIS3DSH_BUS;
 
@@ -132,7 +159,7 @@ static inline void releaseBus(void)
 static const uint8_t resetSequence[] =
 {
    CTRL_REG6_ADDR,
-   REG6_BOOT,
+   REG6_BOOT | REG6_BOOT_INT2,
 };
 
 static const uint8_t enableMultibyteAutoincrement[] =
@@ -147,10 +174,16 @@ static const uint8_t enable2gScale[] =
    REG5_FSCALE_2g,
 };
 
-static const uint8_t enableXYZSamplingAt100Hz[] =
+static const uint8_t setSamplingRateAndEnable[] =
 {
    CTRL_REG4_ADDR,
-   REG4_ODR_100_HZ | REG4_BDU | REG4_ZEN | REG4_YEN | REG4_XEN,
+   REG4_ODR_100_HZ | REG4_ZEN | REG4_YEN | REG4_XEN,
+};
+
+static const uint8_t enableInterrupts[] =
+{
+   CTRL_REG3_ADDR,
+   REG3_DR_EN | REG3_IEA | REG3_IEL | REG3_INT1_EN,
 };
 
 enum Status LIS3DSH_initialize(void)
@@ -166,8 +199,9 @@ enum Status LIS3DSH_initialize(void)
       selectChip();
       status = spi_write(&LIS3DSH_BUS, (uint8_t*) resetSequence, sizeof(resetSequence), &xmit);
       deselectChip();
-      fx3_suspendTask(10);
    }
+
+   fx3_suspendTask(20);       // wake-up time: 10 ms
 
    if (STATUS_OK == status);
    {
@@ -175,7 +209,7 @@ enum Status LIS3DSH_initialize(void)
       status = spi_write(&LIS3DSH_BUS, (uint8_t*) enableMultibyteAutoincrement, sizeof(enableMultibyteAutoincrement), &xmit);
       deselectChip();
 
-      bsp_delay(16);
+      bsp_delay(8);
    }
 
    if (STATUS_OK == status);
@@ -184,18 +218,26 @@ enum Status LIS3DSH_initialize(void)
       status = spi_write(&LIS3DSH_BUS, (uint8_t*) enable2gScale, sizeof(enable2gScale), &xmit);
       deselectChip();
 
-      bsp_delay(16);
+      bsp_delay(8);
    }
 
    if (STATUS_OK == status);
    {
       selectChip();
-      status = spi_write(&LIS3DSH_BUS, (uint8_t*) enableXYZSamplingAt100Hz, sizeof(enableXYZSamplingAt100Hz), &xmit);
+      status = spi_write(&LIS3DSH_BUS, (uint8_t*) setSamplingRateAndEnable, sizeof(setSamplingRateAndEnable), &xmit);
       deselectChip();
-
-      fx3_suspendTask(10);       // settle time 1/ODR
    }
 
+   if (STATUS_OK == status);
+   {
+      selectChip();
+      status = spi_write(&LIS3DSH_BUS, (uint8_t*) enableInterrupts, sizeof(enableInterrupts), &xmit);
+      deselectChip();
+   }
+
+   /*
+    * check settings
+    */
    if (STATUS_OK == status)
    {
       const uint8_t cmd = READ_REGISTER_CMD | CTRL_REG4_ADDR;
@@ -203,12 +245,13 @@ enum Status LIS3DSH_initialize(void)
       selectChip();
       status = spi_write(&LIS3DSH_BUS, (uint8_t*) &cmd, sizeof(cmd), &xmit);
 
-      uint8_t ctrl4Reg = 0;
+      uint8_t configuredRegisters[7] = { 0 };
 
       if (STATUS_OK == status)
       {
-         status = spi_read(&LIS3DSH_BUS, &ctrl4Reg, sizeof(ctrl4Reg), &xmit);
-         if (enableXYZSamplingAt100Hz[1] != ctrl4Reg)
+         status = spi_read(&LIS3DSH_BUS, configuredRegisters, sizeof(configuredRegisters), &xmit);
+
+         if (setSamplingRateAndEnable[1] != configuredRegisters[0])
          {
             status = STATUS_HARDWARE_CONFIGURATION_FAILED;
          }
@@ -219,49 +262,18 @@ enum Status LIS3DSH_initialize(void)
 
    releaseBus();
 
-   return status;
-}
-
-enum Status LIS3DSH_getChipId(uint8_t* chipId)
-{
-   *chipId = 0xff;
-
-   enum Status status = reserveBus();
-   if (STATUS_OK != status)
-   {
-      return status;
-   }
-
-   uint32_t xmit = 0;
-
-   const uint8_t cmd = READ_REGISTER_CMD | WHO_AM_I;
-
-   selectChip();
-   status = spi_write(&LIS3DSH_BUS, (uint8_t*) &cmd, sizeof(cmd), &xmit);
-
    if (STATUS_OK == status)
    {
-      status = spi_read(&LIS3DSH_BUS, chipId, sizeof(*chipId), &xmit);
+      fx3_suspendTask(10);       // settle time 1/ODR
    }
-
-   deselectChip();
-   releaseBus();
 
    return status;
 }
 
-static struct LIS3DSH_rawData
+enum Status LIS3DSH_getChipId(uint32_t* expectedId, uint32_t* actualId)
 {
-   int16_t x;
-   int16_t y;
-   int16_t z;
-}  rawAccelerometerData;
-
-enum Status LIS3DSH_getAcceleration(struct acceleration* accel)
-{
-   accel->x_g = 0;
-   accel->y_g = 0;
-   accel->z_g = 0;
+   *expectedId = 0x37;
+   *actualId   = 0xff;
 
    enum Status status = reserveBus();
    if (STATUS_OK != status)
@@ -271,12 +283,12 @@ enum Status LIS3DSH_getAcceleration(struct acceleration* accel)
 
    uint32_t xmit = 0;
 
-   const uint8_t cmd = READ_REGISTER_CMD | STATUS;
+   const uint8_t cmd = READ_REGISTER_CMD | MULTIPLE_SELECT | REG_INFO1;
+
+   uint8_t rawData[3] = { 0 };
 
    selectChip();
    status = spi_write(&LIS3DSH_BUS, (uint8_t*) &cmd, sizeof(cmd), &xmit);
-
-   uint8_t rawData[7] = { 0 };
 
    if (STATUS_OK == status)
    {
@@ -288,15 +300,230 @@ enum Status LIS3DSH_getAcceleration(struct acceleration* accel)
 
    if (STATUS_OK == status)
    {
-      rawAccelerometerData.x = ((int16_t) ((((uint16_t) rawData[2]) << 8) | rawData[1]));
-      rawAccelerometerData.y = ((int16_t) ((((uint16_t) rawData[4]) << 8) | rawData[3]));
-      rawAccelerometerData.z = ((int16_t) ((((uint16_t) rawData[6]) << 8) | rawData[5]));
-
-      /* low first, then high */
-      accel->x_g = rawAccelerometerData.x * (2.0f / 32768);
-      accel->y_g = rawAccelerometerData.y * (2.0f / 32768);
-      accel->z_g = rawAccelerometerData.z * (2.0f / 32768);
+      *actualId =
+         (((uint32_t) rawData[0]) << 16) |
+         (((uint32_t) rawData[1]) << 8) |
+         ((uint32_t) rawData[2]);
    }
+
+   return status;
+}
+
+enum Status LIS3DSH_getSensitivity(uint8_t* sensitivity)
+{
+   *sensitivity = 2;
+   return STATUS_OK;
+}
+
+enum Status LIS3DSH_getRawCounts(uint8_t* dataStatus, struct LIS3DSH_rawData* rawData)
+{
+   enum Status status = reserveBus();
+   if (STATUS_OK == status)
+   {
+      uint32_t xmit = 0;
+
+      const uint8_t cmd = READ_REGISTER_CMD | STATUS;
+
+      selectChip();
+      status = spi_write(&LIS3DSH_BUS, (uint8_t*) &cmd, sizeof(cmd), &xmit);
+
+      uint8_t data[7] = { 0 };
+
+      if (STATUS_OK == status)
+      {
+         status = spi_read(&LIS3DSH_BUS, data, sizeof(data), &xmit);
+      }
+
+      deselectChip();
+      releaseBus();
+
+      if (STATUS_OK == status)
+      {
+         *dataStatus  = data[0];
+
+         rawData->x = ((int16_t) ((((uint16_t) data[2]) << 8) | data[1]));
+         rawData->y = ((int16_t) ((((uint16_t) data[4]) << 8) | data[3]));
+         rawData->z = ((int16_t) ((((uint16_t) data[6]) << 8) | data[5]));
+      }
+      else
+      {
+         *dataStatus  = 0;
+         memset(rawData, 0, sizeof(*rawData));
+      }
+   }
+
+   return status;
+}
+
+static enum Status getRawCounts(struct LIS3DSH_rawData* rawData)
+{
+   uint32_t xmit = 0;
+
+   const uint8_t cmd = READ_REGISTER_CMD | OUT_X_L_ADDR;
+
+   selectChip();
+   enum Status status = spi_write(&LIS3DSH_BUS, (uint8_t*) &cmd, sizeof(cmd), &xmit);
+
+   uint8_t data[6] = { 0 };
+
+   if (STATUS_OK == status)
+   {
+      status = spi_read(&LIS3DSH_BUS, data, sizeof(data), &xmit);
+   }
+
+   deselectChip();
+
+   if (STATUS_OK == status)
+   {
+      rawData->x = ((int16_t) ((((uint16_t) data[1]) << 8) | data[0]));
+      rawData->y = ((int16_t) ((((uint16_t) data[3]) << 8) | data[2]));
+      rawData->z = ((int16_t) ((((uint16_t) data[5]) << 8) | data[4]));
+   }
+   else
+   {
+      memset(rawData, 0, sizeof(*rawData));
+   }
+
+   return status;
+}
+
+void LIS3DSH_computeAcceleration(const struct LIS3DSH_rawData* rawData, uint32_t dataSize, uint8_t sensitivity, struct acceleration* accel)
+{
+   if (dataSize)
+   {
+      const float sensitivityAdjustment = (32768.0f / (float) (sensitivity));
+
+      /*
+       * we're averaging up to 32 int16_t values; we can add them all up,
+       * without fear of overflow
+       */
+      int32_t sumOfX = 0;
+      int32_t sumOfY = 0;
+      int32_t sumOfZ = 0;
+
+      for (uint32_t ii = 0; ii < dataSize; ii ++)
+      {
+         sumOfX += rawData[ii].x;
+         sumOfY += rawData[ii].y;
+         sumOfZ += rawData[ii].z;
+      }
+
+      float averageX = sumOfX / (float) dataSize;
+      float averageY = sumOfY / (float) dataSize;
+      float averageZ = sumOfZ / (float) dataSize;
+
+      accel->x_g = ((float) averageX) / sensitivityAdjustment;
+      accel->y_g = ((float) averageY) / sensitivityAdjustment;
+      accel->z_g = ((float) averageZ) / sensitivityAdjustment;
+   }
+   else
+   {
+      accel->x_g = 0.0f;
+      accel->y_g = 0.0f;
+      accel->z_g = 0.0f;
+   }
+}
+
+static const uint8_t enableFIFO[] =
+{
+   CTRL_REG6_ADDR,
+   REG6_FIFO_EN | REG6_IF_ADD_INC,
+};
+
+static const uint8_t setFIFOMode[] =
+{
+   FIFO_CTRL_REG,
+   FIFO_CTRL_CIRCULAR,
+};
+
+static const uint8_t disableFIFO[] =
+{
+   CTRL_REG6_ADDR,
+   REG6_FIFO_EN | REG6_IF_ADD_INC,
+};
+
+enum Status LIS3DSH_enableFIFO(void)
+{
+   enum Status status = reserveBus();
+
+   uint32_t xmit = 0;
+
+   if (STATUS_OK == status)
+   {
+      selectChip();
+      status = spi_write(&LIS3DSH_BUS, (uint8_t*) enableFIFO, sizeof(enableFIFO), &xmit);
+      deselectChip();
+
+      if (STATUS_OK == status)
+      {
+         selectChip();
+         status = spi_write(&LIS3DSH_BUS, (uint8_t*) setFIFOMode, sizeof(setFIFOMode), &xmit);
+         deselectChip();
+      }
+
+      releaseBus();
+   }
+
+   return status;
+}
+
+enum Status LIS3DSH_disableFIFO(void)
+{
+   uint32_t xmit = 0;
+
+   enum Status status = reserveBus();
+
+   if (STATUS_OK == status)
+   {
+      selectChip();
+      status = spi_write(&LIS3DSH_BUS, (uint8_t*) disableFIFO, sizeof(disableFIFO), &xmit);
+      deselectChip();
+
+      releaseBus();
+   }
+
+   return status;
+}
+
+enum Status LIS3DSH_readFIFO(struct LIS3DSH_rawData* data, uint32_t capacity, uint32_t* valuesCount)
+{
+   uint32_t xmit = 0;
+
+   uint32_t readCount = 0;
+   enum Status status = reserveBus();
+
+   if (STATUS_OK == status)
+   {
+      uint8_t fifoSrc = 0;
+
+      {
+         const uint8_t cmd = READ_REGISTER_CMD | FIFO_SRC_REG;
+
+         selectChip();
+         status = spi_write(&LIS3DSH_BUS, (uint8_t*) &cmd, sizeof(cmd), &xmit);
+
+         if (STATUS_OK == status)
+         {
+            status = spi_read(&LIS3DSH_BUS, &fifoSrc, sizeof(fifoSrc), &xmit);
+         }
+
+         deselectChip();
+      }
+
+      uint32_t samplesCount = (fifoSrc & FIFO_SRC_SAMPLES_MASK);
+
+      while ((STATUS_OK == status) && samplesCount && (readCount < capacity))
+      {
+         status = getRawCounts(&data[readCount]);
+
+         readCount ++;
+         samplesCount --;
+      }
+
+      releaseBus();
+   }
+
+   *valuesCount = readCount;
 
    return status;
 }

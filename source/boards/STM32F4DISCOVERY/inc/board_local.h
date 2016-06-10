@@ -157,5 +157,8 @@ struct SPIBus
 #define LIS3DSH_BUS           spiBus1
 #define LIS3DSH_CHIP_SELECT   PIN('E', 3)
 
+#define LIS3DH_BUS            spiBus2
+#define LIS3DH_CHIP_SELECT    PIN('E', 15)
+
 #endif // __BOARD_LOCAL_H__
 
