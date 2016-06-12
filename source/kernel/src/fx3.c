@@ -338,9 +338,17 @@ static void verifyTaskControlBlocks(bool expectTaskInRunningState)
     * check sleeping queue
     * note; the queue is a heap, and indices start at 1
     */
-   for (uint32_t ii = 1; ii <= fx3Timer.sleepingTasks->size; ii ++)
+   for (uint32_t ii = 0; ii < fx3Timer.sleepingTasks->size; ii ++)
    {
-      uint32_t* sleepUntil = fx3Timer.sleepingTasks->memPool[ii];
+      uint32_t* sleepUntil = fx3Timer.sleepingTasks->memPool[ii + 1];
+      struct task_control_block* sleepingTask = (struct task_control_block*) (((uint8_t*) sleepUntil) - (offsetof(struct task_control_block, sleepUntil_ticks)));;
+
+      assert(TS_SLEEPING == sleepingTask->state);
+   }
+
+   for (uint32_t ii = 0; ii < fx3Timer.sleepingTasksNextEpoch->size; ii ++)
+   {
+      uint32_t* sleepUntil = fx3Timer.sleepingTasksNextEpoch->memPool[ii + 1];
       struct task_control_block* sleepingTask = (struct task_control_block*) (((uint8_t*) sleepUntil) - (offsetof(struct task_control_block, sleepUntil_ticks)));;
 
       assert(TS_SLEEPING == sleepingTask->state);
