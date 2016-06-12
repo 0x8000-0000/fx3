@@ -34,6 +34,10 @@ APP_TEST_OUTPIN_TARGET:=outpin
 APP_TEST_OUTPIN_OBJECTS:=test_output_pin.o
 APP_TEST_OUTPIN_C_VPATH:=source/apps/tests
 
+APP_TEST_BUTTON_TARGET:=buttons
+APP_TEST_BUTTON_OBJECTS:=test_button.o heartbeat.o
+APP_TEST_BUTTON_C_VPATH:=source/apps/tests
+
 
 #
 # UART tests
