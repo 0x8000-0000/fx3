@@ -533,6 +533,11 @@ static void setupTasksLinks(void)
       markTaskReady(currentTask);
    }
 
+   memset(fx3Timer.sleepingTasksMemPool_0, 0, sizeof(fx3Timer.sleepingTasksMemPool_0));
+   memset(fx3Timer.sleepingTasksMemPool_1, 0, sizeof(fx3Timer.sleepingTasksMemPool_1));
+   prq_initialize(&fx3Timer.sleepingTasks_0, fx3Timer.sleepingTasksMemPool_0, FX3_MAX_TASK_COUNT + 1);
+   prq_initialize(&fx3Timer.sleepingTasks_1, fx3Timer.sleepingTasksMemPool_1, FX3_MAX_TASK_COUNT + 1);
+
    /*
     * the last task is the idleTask, as it has the lowest priority
     */
