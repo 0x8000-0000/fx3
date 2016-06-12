@@ -398,8 +398,8 @@ void fx3_initialize(void)
 void createTaskImpl(struct task_control_block* tcb, const struct task_config* config, uint32_t* stackPointer, const void* argument)
 {
    allValidTaskControlBlocks[tasksCreated_count] = tcb;
-
    tasksCreated_count ++;
+   assert(tasksCreated_count <= FX3_MAX_TASK_COUNT);
 
    tcb->id = tasksCreated_count;
 

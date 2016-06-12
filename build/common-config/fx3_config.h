@@ -24,7 +24,7 @@
 #ifndef __FX3_CONFIG_H__
 #define __FX3_CONFIG_H__
 
-#define FX3_MAX_TASK_COUNT 8
+#define FX3_MAX_TASK_COUNT 12
 
 #endif // __FX3_CONFIG_H__
 
