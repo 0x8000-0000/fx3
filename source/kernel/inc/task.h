@@ -150,7 +150,7 @@ struct task_control_block
    volatile struct list_element*          inbox;
 
    /// linked list of received messages that are about to be processed
-   struct buffer*                messageQueue;
+   struct list_element*                messageQueue;
 };
 
 /** Initialize the FX3 data structures
@@ -184,13 +184,13 @@ void fx3_suspendTask(uint32_t timeout_ms);
  * @param tcb identifies the task
  * @param buf contains the message; the receiving task takes ownership of the buffer
  */
-void fx3_sendMessage(struct task_control_block* tcb, struct buffer* buf);
+void fx3_sendMessage(struct task_control_block* tcb, struct list_element* msg);
 
 /** Wait until there is a message in my task queue
  *
  * @return the buffer containing the message
  */
-struct buffer* fx3_waitForMessage(void);
+struct list_element* fx3_waitForMessage(void);
 
 /** @} */
 

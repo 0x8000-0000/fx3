@@ -918,7 +918,7 @@ struct task_control_block* fx3_getRunningTask(void)
    return runningTask;
 }
 
-void fx3_sendMessage(struct task_control_block* tcb, struct buffer* buf)
+void fx3_sendMessage(struct task_control_block* tcb, struct list_element* msg)
 {
    /*
     * There is an efficient lock-free stack push algorithm for
@@ -933,8 +933,8 @@ void fx3_sendMessage(struct task_control_block* tcb, struct buffer* buf)
     * can be done efficiently in linear time.
     */
 
-   // lock-free push buf into the stack pointed to by tcb->inbox
-   lst_pushElement(&tcb->inbox, &buf->element);
+   // lock-free push msg into the stack pointed to by tcb->inbox
+   lst_pushElement(&tcb->inbox, msg);
 
    // make tcb runnable if blocked on its queue
    if (TS_WAITING_FOR_MESSAGE == tcb->state)
@@ -943,7 +943,7 @@ void fx3_sendMessage(struct task_control_block* tcb, struct buffer* buf)
    }
 }
 
-struct buffer* fx3_waitForMessage(void)
+struct list_element* fx3_waitForMessage(void)
 {
    struct task_control_block* thisTask = runningTask;
 
@@ -955,7 +955,7 @@ struct buffer* fx3_waitForMessage(void)
    while (! thisTask->messageQueue)
    {
       // lock-free fetch the inbox variable and simultaneously reset it
-      struct buffer* todo = (struct buffer*) lst_fetchAll(&thisTask->inbox);
+      struct list_element* todo = lst_fetchAll(&thisTask->inbox);
 
       if (todo)
       {
@@ -972,10 +972,10 @@ struct buffer* fx3_waitForMessage(void)
           */
          while (todo)
          {
-            struct buffer* next    = todo->next;
-            todo->next             = thisTask->messageQueue;
-            thisTask->messageQueue = todo;
-            todo                   = next;
+            struct list_element* next = todo->next;
+            todo->next                = thisTask->messageQueue;
+            thisTask->messageQueue    = todo;
+            todo                      = next;
          }
       }
       else
@@ -984,11 +984,11 @@ struct buffer* fx3_waitForMessage(void)
       }
    }
 
-   struct buffer* buf     = thisTask->messageQueue;
-   thisTask->messageQueue = buf->next;
-   buf->next              = NULL;
+   struct list_element* msg  = thisTask->messageQueue;
+   thisTask->messageQueue    = msg->next;
+   msg->next                 = NULL;
 
-   return buf;
+   return msg;
 }
 
 static inline int __attribute__((pure)) compareTaskPriorities(const struct list_element* left, const struct list_element* right) 
