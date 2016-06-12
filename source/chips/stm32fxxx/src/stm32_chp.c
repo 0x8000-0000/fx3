@@ -190,11 +190,11 @@ void TIM2_IRQHandler(void)
 
    if ((TIM2->SR & TIM_SR_CC1IF))
    {
+      // acknowledge interrupt
+      TIM2->SR = ~TIM_SR_CC1IF;
+
       if ((TIM2->DIER & TIM_DIER_CC1IE))
       {
-         // acknowledge interrupt
-         TIM2->SR = ~TIM_SR_CC1IF;
-
          // one-shot interrupt; will re-arm when needed
          TIM2->DIER &= ~TIM_DIER_CC1IE;
          wakeupRequestedAt = 0;
@@ -208,11 +208,11 @@ void TIM2_IRQHandler(void)
 
    if ((TIM2->SR & TIM_SR_CC2IF))
    {
+      // acknowledge interrupt
+      TIM2->SR = ~TIM_SR_CC2IF;
+
       if ((TIM2->DIER & TIM_DIER_CC2IE))
       {
-         // acknowledge interrupt
-         TIM2->SR = ~TIM_SR_CC2IF;
-
          // one-shot interrupt; will re-arm when needed
          TIM2->DIER &= ~TIM_DIER_CC2IE;
 
@@ -240,10 +240,10 @@ void TIM2_IRQHandler(void)
 
    if ((TIM2->SR & TIM_SR_UIF))
    {
+      TIM2->SR = ~TIM_SR_UIF;
+
       if ((TIM2->DIER & TIM_DIER_UIE))
       {
-         TIM2->SR = ~TIM_SR_UIF;
-
          clockUpperBits ++;
 
          returnToScheduler |= bsp_onEpochRollover();
