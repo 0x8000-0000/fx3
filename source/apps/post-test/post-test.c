@@ -43,7 +43,7 @@ static const struct led_toggler toggler[] =
 {
    {
       .ledId              = 0,
-      .initialDelay_ms    = 0,
+      .initialDelay_ms    = 2,
       .sleepBeforeWork_ms = 25,
       .messageOn_count    = 4,
       .messageOff_count   = 4,
@@ -83,7 +83,7 @@ static void toggleLed(const void* arg)
 
       for (uint32_t ii = 0; ii < tog->messageOn_count; ii ++)
       {
-         struct buffer* buf = fx3_waitForMessage();
+         struct buffer* buf = (struct buffer*) fx3_waitForMessage();
          buf_free(buf);
       }
 
@@ -93,7 +93,7 @@ static void toggleLed(const void* arg)
 
       for (uint32_t ii = 0; ii < tog->messageOff_count; ii ++)
       {
-         struct buffer* buf = fx3_waitForMessage();
+         struct buffer* buf = (struct buffer*) fx3_waitForMessage();
          buf_free(buf);
       }
 
@@ -172,7 +172,7 @@ static void sendMessages(const void* arg)
 
          struct buffer* buf = buf_alloc(8);
 
-         fx3_sendMessage(&togglerTCB[nextValue % 4], buf);
+         fx3_sendMessage(&togglerTCB[nextValue % 4], &buf->element);
 
          fx3_suspendTask(msg->messageInterval_ms);
       }
