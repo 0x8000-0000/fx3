@@ -212,7 +212,7 @@ static inline uint32_t computeEffectivePriority(enum task_state state, const str
 
 /* Mark task ready
  */
-static void markTaskReady(struct task_control_block* tcb)
+static bool markTaskReady(struct task_control_block* tcb)
 {
    assert(tcb->config->timeSlice_ticks >= tcb->roundRobinSliceLeft_ticks);
    if (tcb->config->timeSlice_ticks && (0 == tcb->roundRobinSliceLeft_ticks))
@@ -234,6 +234,8 @@ static void markTaskReady(struct task_control_block* tcb)
       SEGGER_SYSVIEW_OnTaskStartReady((uint32_t) tcb);
    }
 #endif
+
+   return (tcb->effectivePriority < runningTask->effectivePriority);
 }
 
 static void scheduleReadyTask(struct task_control_block* tcb)
@@ -778,11 +780,7 @@ static bool handleWakeUpAlarm(struct fx3_command* cmd)
 
    bool runningTaskDethroned = false;
 
-   markTaskReady(sleepingTaskToAwake);
-   if (sleepingTaskToAwake->effectivePriority < runningTask->effectivePriority)
-   {
-      runningTaskDethroned = true;
-   }
+   runningTaskDethroned |= markTaskReady(sleepingTaskToAwake);
    /*
     * done with the task that was waiting to be woken up
     */
@@ -797,11 +795,7 @@ static bool handleWakeUpAlarm(struct fx3_command* cmd)
       assert(TS_SLEEPING == fx3Timer.firstSleepingTaskToAwake->state);
       if (*nextWakeupDeadline <= bsp_getTimestamp_ticks())
       {
-         markTaskReady(fx3Timer.firstSleepingTaskToAwake);
-         if (fx3Timer.firstSleepingTaskToAwake->effectivePriority < runningTask->effectivePriority)
-         {
-            runningTaskDethroned = true;
-         }
+         runningTaskDethroned |= markTaskReady(fx3Timer.firstSleepingTaskToAwake);
          fx3Timer.firstSleepingTaskToAwake = NULL;
       }
    }
@@ -864,11 +858,7 @@ static bool handleEpochRollover(struct fx3_command* cmd)
       assert(TS_SLEEPING == fx3Timer.firstSleepingTaskToAwake->state);
       if (0 == fx3Timer.firstSleepingTaskToAwake->sleepUntil_ticks)
       {
-         markTaskReady(fx3Timer.firstSleepingTaskToAwake);
-         if (fx3Timer.firstSleepingTaskToAwake->effectivePriority < runningTask->effectivePriority)
-         {
-            runningTaskDethroned = true;
-         }
+         runningTaskDethroned |= markTaskReady(fx3Timer.firstSleepingTaskToAwake);
          fx3Timer.firstSleepingTaskToAwake = NULL;
       }
    }
@@ -1039,8 +1029,7 @@ static bool handleSemaphoreSignal(struct fx3_command* cmd)
       sem->waitList                    = highestPriorityWaitingTask->next;
       highestPriorityWaitingTask->next = NULL;
 
-      markTaskReady(highestPriorityWaitingTask);
-      runningTaskDethroned = (highestPriorityWaitingTask->effectivePriority < runningTask->effectivePriority);
+      runningTaskDethroned |= markTaskReady(highestPriorityWaitingTask);
    }
 
    if (runningTaskDethroned)
@@ -1097,7 +1086,7 @@ bool fx3_processPendingCommands(void)
             switch (cmd->type)
             {
                case FX3_READY_TASK:
-                  markTaskReady(cmd->task);
+                  contextSwitchNeeded |= markTaskReady(cmd->task);
                   freeFX3Command(cmd);
                   break;
 
@@ -1128,6 +1117,10 @@ bool fx3_processPendingCommands(void)
 
    if (contextSwitchNeeded)
    {
+      if (TS_RUNNING == runningTask->state)
+      {
+         markTaskReady(runningTask);
+      }
       selectNextRunningTask();
    }
 
