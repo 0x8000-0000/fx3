@@ -76,6 +76,14 @@ void bsp_setOutputPin(uint32_t outputPin, bool high);
 
 bool bsp_getInputState(uint32_t inputPin);
 
+void bsp_requestNotificationForInputChange(uint32_t inputPin);
+
+void bsp_onInputStateChanged(uint32_t inputPin, bool newState);
+
+void bsp_enableInputStateNotifications(void);
+
+void bsp_disableInputStateNotifications(void);
+
 /**
  * @}
  */
@@ -143,6 +151,8 @@ void bsp_requestDebounceTimeout_ticks(uint32_t timestamp_ticks);
 void bsp_cancelDebounceTimeout(void);
 
 bool bsp_onDebounceIntervalTimeout(void);
+
+
 /**
  * @}
  */

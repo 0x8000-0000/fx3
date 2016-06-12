@@ -74,6 +74,8 @@ void chp_initialize(void)
 #endif
 
    clockUpperBits = 0;
+
+   HAL_NVIC_SetPriority(EXTI0_IRQn, 2, 3);
 }
 
 void chp_initializeSystemTimer(uint16_t prescaler)

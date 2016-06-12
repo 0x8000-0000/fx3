@@ -41,6 +41,7 @@ BOARD_STM32F4DISCOVERY_OBJECTS:=\
 	stm32f4_driver_usart.o \
 	stm32f4_driver_i2c.o \
 	stm32f4_driver_spi.o \
+	stm32f4_driver_input.o \
 	bitops.o \
 	system_stm32f4xx.o \
 	stm32f4xx_hal.o \
