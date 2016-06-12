@@ -52,7 +52,7 @@ void bsp_delay(uint32_t loops);
  * @}
  */
 
-/** @addtogroup Input/Output
+/** @addtogroup Output
  * @{
  */
 
@@ -65,6 +65,16 @@ void bsp_toggleLED(uint32_t ledId);
 void bsp_initializeOutputPin(uint32_t outputPin);
 
 void bsp_setOutputPin(uint32_t outputPin, bool high);
+
+/**
+ * @}
+ */
+
+/** @addtogroup Input
+ * @{
+ */
+
+bool bsp_getInputState(uint32_t inputPin);
 
 /**
  * @}

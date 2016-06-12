@@ -383,3 +383,11 @@ void bsp_setOutputPin(uint32_t outputPin, bool high)
    gpio->BSRR = (1 << (pin + 16 * (! high)));
 }
 
+bool bsp_getInputState(uint32_t inputPin)
+{
+   GPIO_TypeDef* gpio = (GPIO_TypeDef*) (inputPin & 0xffffff00);
+   uint32_t pin = inputPin & 0xff;
+   //HAL_GPIO_ReadPin(gpio, (GPIO_PIN_0 << pin));
+   return (0 != (gpio->IDR & (1 << pin)));
+}
+
