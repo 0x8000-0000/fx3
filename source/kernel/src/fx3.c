@@ -135,6 +135,8 @@ static inline void freeFX3Command(struct fx3_command* cmd)
  *    * on the sleeping queue
  *    * waiting on a semaphore, mutex, event...
  */
+static bool fx3IsInitialized = false;
+
 struct task_control_block* runningTask;
 struct task_control_block* nextRunningTask;
 
@@ -384,6 +386,8 @@ void fx3_initialize(void)
 
    sleepCycles = 0;
 
+   fx3IsInitialized = true;
+
    fx3_createTask(&idleTask, &idleTaskConfig);
 
 #ifdef FX3_RTT_TRACE
@@ -449,6 +453,8 @@ void createTaskImpl(struct task_control_block* tcb, const struct task_config* co
 
 void fx3_createTask(struct task_control_block* tcb, const struct task_config* config)
 {
+   assert(fx3IsInitialized);
+
    memset(tcb, 0, sizeof(*tcb));
    memset((void*) config->stackBase, 0, config->stackSize);
 
