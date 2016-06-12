@@ -269,3 +269,11 @@ __attribute__((noreturn)) void bsp_reset(void)
    }
 }
 
+#ifdef FX3_RTT_TRACE
+void bsp_describeInterrupts(void)
+{
+   SEGGER_SYSVIEW_SendSysDesc("I#44=TIM2");
+   SEGGER_SYSVIEW_SendSysDesc("I#22=EXTI0");
+   SEGGER_SYSVIEW_SendSysDesc("I#23=EXTI1");
+}
+#endif

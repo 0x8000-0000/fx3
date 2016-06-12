@@ -89,6 +89,10 @@ Purpose     : Setup configuration of SystemView for FX3 Apps.
 #define NOCYCCNT_BIT              (1uL << 25)                           // Cycle counter support bit
 #define CYCCNTENA_BIT             (1uL << 0)                            // Cycle counter enable bit
 
+void __attribute__((weak)) bsp_describeInterrupts(void)
+{
+}
+
 /********************************************************************* 
 *
 *       _cbSendSystemDesc()
@@ -100,7 +104,7 @@ static void _cbSendSystemDesc(void)
 {
    SEGGER_SYSVIEW_SendSysDesc("N="SYSVIEW_APP_NAME",D="SYSVIEW_DEVICE_NAME);
    SEGGER_SYSVIEW_SendSysDesc("I#15=SysTick");
-   SEGGER_SYSVIEW_SendSysDesc("I#44=TIM2");
+   bsp_describeInterrupts();
 }
 
 static U64 _cbGetTime(void)
