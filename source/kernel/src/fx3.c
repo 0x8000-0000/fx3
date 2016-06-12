@@ -54,7 +54,7 @@ enum command_type
 
    FX3_SIGNAL_SEMAPHORE,
 
-   FX3_TIMER_REQUEST_WAKEUP,
+   FX3_TIMER_REQUEST_SUSPEND,
 
    /// Sent by timer handler to FX3
    FX3_TIMER_EVENT_WAKEUP,
@@ -652,7 +652,7 @@ static void selectNextRunningTask(void)
  */
 bool handleSleepRequest(struct fx3_command* cmd)
 {
-   assert(FX3_TIMER_REQUEST_WAKEUP == cmd->type);
+   assert(FX3_TIMER_REQUEST_SUSPEND == cmd->type);
 
    struct task_control_block* sleepyTask = cmd->task;
    uint32_t timeout_ms = (uint32_t) cmd->object;
@@ -752,7 +752,7 @@ void fx3_suspendTask(uint32_t timeout_ms)
 
    struct fx3_command* cmd = allocateFX3Command();
 
-   cmd->type   = FX3_TIMER_REQUEST_WAKEUP;
+   cmd->type   = FX3_TIMER_REQUEST_SUSPEND;
    cmd->task   = runningTask;
    cmd->object = (void*) timeout_ms;
 
@@ -1101,7 +1101,7 @@ bool fx3_processPendingCommands(void)
                   freeFX3Command(cmd);
                   break;
 
-               case FX3_TIMER_REQUEST_WAKEUP:
+               case FX3_TIMER_REQUEST_SUSPEND:
                   handleSleepRequest(cmd);
                   contextSwitchNeeded = true;
                   break;
