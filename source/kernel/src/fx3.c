@@ -249,7 +249,7 @@ static uint32_t tasksCreated_count;
 static void verifyTaskControlBlocks(bool expectTaskInRunningState)
 {
 #ifdef FX3_RTT_TRACE
-   SEGGER_SYSVIEW_RecordVoid(32);
+   //SEGGER_SYSVIEW_RecordVoid(32);
 #endif
 
    bool foundTaskInRunningState = false;
@@ -347,7 +347,8 @@ static void verifyTaskControlBlocks(bool expectTaskInRunningState)
    }
 
 #ifdef FX3_RTT_TRACE
-   SEGGER_SYSVIEW_RecordEndCall(32);
+   // supported from SysView 2.36 onwards
+   //SEGGER_SYSVIEW_RecordEndCall(32);
 #endif
 }
 
