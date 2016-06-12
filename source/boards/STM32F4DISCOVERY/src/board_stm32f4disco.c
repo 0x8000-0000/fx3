@@ -88,6 +88,20 @@ static void initializeLEDs(void)
    HAL_GPIO_Init(GPIOD, (GPIO_InitTypeDef*) &GPIO_InitStruct);
 }
 
+static void initializeButtons(void)
+{
+   __GPIOA_CLK_ENABLE();
+
+   static const GPIO_InitTypeDef GPIO_InitStruct =
+   {
+      .Pin   = GPIO_PIN_0,
+      .Mode  = GPIO_MODE_IT_RISING_FALLING,
+      .Pull  = GPIO_NOPULL,
+      .Speed = GPIO_SPEED_FAST,
+   };
+   HAL_GPIO_Init(GPIOA, (GPIO_InitTypeDef*) &GPIO_InitStruct);
+}
+
 uint8_t transmitBufferSupport[512];
 uint8_t receiveBufferSupport[512];
 
@@ -303,7 +317,8 @@ static void initializeChipSelects(void)
       HAL_GPIO_WritePin(GPIOE, GPIO_PIN_3 | GPIO_PIN_15, GPIO_PIN_SET);
    }
 
-   // INT2 on PE1 for Accelerometer
+#if 0
+   // INT0 on PE0 and INT2 on PE1 for onboard accelerometer
    {
       static const GPIO_InitTypeDef GPIO_InitStruct =
       {
@@ -314,6 +329,7 @@ static void initializeChipSelects(void)
       };
       HAL_GPIO_Init(GPIOE, (GPIO_InitTypeDef*) &GPIO_InitStruct);
    }
+#endif
 }
 
 void bsp_initialize(void)
@@ -325,6 +341,8 @@ void bsp_initialize(void)
    initializeMainClock();
 
    initializeLEDs();
+
+   initializeButtons();
 
    initializeUART();
 

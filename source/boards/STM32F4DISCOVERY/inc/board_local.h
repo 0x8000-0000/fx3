@@ -160,5 +160,7 @@ struct SPIBus
 #define LIS3DH_BUS            spiBus2
 #define LIS3DH_CHIP_SELECT    PIN('E', 15)
 
+#define PUSH_BUTTON0          PIN('A', 0)
+
 #endif // __BOARD_LOCAL_H__
 
