@@ -140,6 +140,22 @@ void bsp_cancelRoundRobinSliceTimeout(void)
    TIM2->DIER &= ~TIM_DIER_CC2IE;
 }
 
+void bsp_requestDebounceTimeout_ticks(uint32_t timestamp_ticks)
+{
+   TIM2->CCR3  = timestamp_ticks;
+   TIM2->DIER |= TIM_DIER_CC3IE;
+}
+
+void bsp_cancelDebounceTimeout(void)
+{
+   TIM2->DIER &= ~TIM_DIER_CC3IE;
+}
+
+bool __attribute__((weak)) bsp_onDebounceIntervalTimeout(void)
+{
+   return false;
+}
+
 void bsp_disableSystemTimer(void)
 {
    HAL_NVIC_DisableIRQ(TIM2_IRQn);
@@ -201,6 +217,22 @@ void TIM2_IRQHandler(void)
          TIM2->DIER &= ~TIM_DIER_CC2IE;
 
          returnToScheduler |= bsp_onRoundRobinSliceTimeout();
+
+         handled = true;
+      }
+   }
+
+   if ((TIM2->SR & TIM_SR_CC3IF))
+   {
+      // acknowledge interrupt
+      TIM2->SR = ~TIM_SR_CC3IF;
+
+      if ((TIM2->DIER & TIM_DIER_CC3IE))
+      {
+         // one-shot interrupt; will re-arm when needed
+         TIM2->DIER &= ~TIM_DIER_CC3IE;
+
+         returnToScheduler |= bsp_onDebounceIntervalTimeout();
 
          handled = true;
       }

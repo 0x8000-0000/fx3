@@ -112,14 +112,27 @@ void bsp_wakeUpAt_ticks(uint32_t timestamp_ticks);
  */
 bool bsp_onWokenUp(void);
 
+// Event
 bool bsp_onEpochRollover(void);
 
+/*
+ * Round-robin support
+ */
 void bsp_requestRoundRobinSliceTimeout_ticks(uint32_t timestamp_ticks);
 
 void bsp_cancelRoundRobinSliceTimeout(void);
 
+// Event
 bool bsp_onRoundRobinSliceTimeout(void);
 
+/*
+ * Debounce support
+ */
+void bsp_requestDebounceTimeout_ticks(uint32_t timestamp_ticks);
+
+void bsp_cancelDebounceTimeout(void);
+
+bool bsp_onDebounceIntervalTimeout(void);
 /**
  * @}
  */
