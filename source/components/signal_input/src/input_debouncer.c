@@ -156,6 +156,8 @@ static uint32_t debouncePeriods;
 
 static void debounceInputs(const void* arg __attribute__((unused)))
 {
+   debouncePeriods = 0;
+
    while (true)
    {
       struct input_event* event = (struct input_event*) fx3_waitForMessage();
