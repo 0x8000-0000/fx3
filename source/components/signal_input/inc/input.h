@@ -42,12 +42,14 @@ struct input_event
       struct list_element    element;
    };
 
-   uint32_t inputPin;
-   bool     isHigh;
+   unsigned int  inputId  : 8;
+
+   unsigned int  isHigh   : 1;
 
    // private
-   bool     debounceIntervalExpired;
-   uint8_t  reserved[2];
+   unsigned int  debounceIntervalExpired: 1;
+
+   int           position: 22;
 };
 
 void inp_initialize(void);
@@ -56,7 +58,7 @@ void inp_initialize(void);
  * @{
  */
 
-void inp_monitorSwitch(uint32_t inputPin);
+void inp_monitorSwitch(uint8_t switchId, uint32_t inputPin);
 
 void inp_onSwitchStateChange(struct input_event* event);
 

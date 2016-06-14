@@ -42,6 +42,12 @@ static const char LOW_TEXT[] = " up\r\n";
 
 static uint8_t outBuffer[80];
 
+enum inputs
+{
+   INVALID,
+   PA0_SWTICH,
+};
+
 static void testHandler(const void* arg __attribute__((unused)))
 {
    uint32_t bytesWritten = 0;
@@ -49,7 +55,7 @@ static void testHandler(const void* arg __attribute__((unused)))
    assert(STATUS_OK == status);
    assert((sizeof(APP_BANNER) - 1) == bytesWritten);
 
-   inp_monitorSwitch(PUSH_BUTTON0);
+   inp_monitorSwitch(PA0_SWTICH, PUSH_BUTTON0);
 
    memcpy(outBuffer, MESSAGE, sizeof(MESSAGE) - 1);
 
@@ -57,12 +63,12 @@ static void testHandler(const void* arg __attribute__((unused)))
    {
       struct input_event* evt = (struct input_event*) fx3_waitForMessage();
 
-      uint32_t inputPin = evt->inputPin;
-      bool     isHigh   = evt->isHigh;
+      uint8_t inputId = evt->inputId;
+      bool    isHigh  = evt->isHigh;
 
       inp_recycleEvent(evt);
 
-      if (PUSH_BUTTON0 == inputPin)
+      if (PA0_SWTICH == inputId)
       {
          uint32_t messageLen = 0;
          if (isHigh)

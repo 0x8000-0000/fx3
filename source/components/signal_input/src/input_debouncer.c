@@ -36,6 +36,10 @@
 
 #include <input.h>
 
+#ifndef MAX_DEBOUNCE_INPUT_COUNT
+#define MAX_DEBOUNCE_INPUT_COUNT 16
+#endif
+
 #ifndef MAX_EVENT_COUNT
 #define MAX_EVENT_COUNT 16
 #endif
@@ -52,21 +56,31 @@
 #define DEBOUNCE_INTEGRATOR_MAX 8
 #endif
 
-#ifndef MAX_DEBOUNCE_INPUT_COUNT
-#define MAX_DEBOUNCE_INPUT_COUNT 16
-#endif
-
-struct input_pin
+enum special_input_id
 {
-   uint32_t pinAddress;
-   uint8_t  integrator;
-   uint8_t  outputValue;
-   uint8_t  lastOutputValue;
-   uint8_t  reserved;
+   ID_TIMEOUT,
+   ID_SWITCH_INTERRUPT,
 };
 
-static struct input_pin debounceInputPins[MAX_DEBOUNCE_INPUT_COUNT];
-static uint32_t debounceInputPins_count;
+_Static_assert(8 == sizeof(struct input_event), "struct size");
+
+struct input_pin_config
+{
+   uint32_t pinAddress;
+   uint8_t  switchId;
+   uint8_t  integrator;          // could combine into a single byte
+   uint8_t  outputValue;
+   uint8_t  lastOutputValue;
+};
+
+_Static_assert(8 == sizeof(struct input_pin_config), "struct size");
+
+static struct debounce_input
+{
+   uint32_t count;
+   struct input_pin_config pin[MAX_DEBOUNCE_INPUT_COUNT];
+}  debounceInput;
+
 
 static volatile uint32_t eventBitmap;
 static struct input_event eventPool[MAX_EVENT_COUNT];
@@ -102,9 +116,9 @@ static bool pollInputSignals(void)
 {
    bool stateChange = false;
 
-   for (uint32_t ii = 0; ii < debounceInputPins_count; ii ++)
+   for (uint32_t ii = 0; ii < debounceInput.count; ii ++)
    {
-      struct input_pin* ip = &debounceInputPins[ii];
+      struct input_pin_config* ip = &debounceInput.pin[ii];
 
       ip->lastOutputValue = ip->outputValue;
 
@@ -138,11 +152,8 @@ static bool pollInputSignals(void)
       if (ip->outputValue != ip->lastOutputValue)
       {
          struct input_event* event = allocateEvent();
-
-         event->inputPin                = ip->pinAddress;
-         event->isHigh                  = ip->outputValue;
-         event->debounceIntervalExpired = false;
-
+         event->inputId            = ip->switchId;
+         event->isHigh             = ip->outputValue;
          inp_onSwitchStateChange(event);
 
          stateChange = true;
@@ -164,7 +175,7 @@ static void debounceInputs(const void* arg __attribute__((unused)))
       bool debounceIntervalExpired = event->debounceIntervalExpired;
       inp_recycleEvent(event);
 
-      if (event->debounceIntervalExpired)
+      if (ID_TIMEOUT == event->inputId)
       {
          debouncePeriods --;
 
@@ -208,25 +219,27 @@ static struct task_control_block inputDebouncerTCB;
 
 void inp_initialize(void)
 {
+   memset(&debounceInput, 0, sizeof(debounceInput));
+
    bit_initialize(&eventBitmap, MAX_EVENT_COUNT);
 
    fx3_createTask(&inputDebouncerTCB, &inputDebouncerConfig);
 
    bsp_enableInputStateNotifications();
-
-   memset(debounceInputPins, 0, sizeof(debounceInputPins));
-   debounceInputPins_count = 0;
 }
 
-void inp_monitorSwitch(uint32_t inputPin)
+void inp_monitorSwitch(uint8_t switchId, uint32_t inputPin)
 {
-   if (debounceInputPins_count < MAX_DEBOUNCE_INPUT_COUNT)
+   if (debounceInput.count < MAX_DEBOUNCE_INPUT_COUNT)
    {
-      debounceInputPins[debounceInputPins_count].pinAddress      = inputPin;
-      debounceInputPins[debounceInputPins_count].integrator      = 0;
-      debounceInputPins[debounceInputPins_count].outputValue     = 0;
-      debounceInputPins[debounceInputPins_count].lastOutputValue = 0;
-      debounceInputPins_count ++;
+      struct input_pin_config* ip = &debounceInput.pin[debounceInput.count];
+      debounceInput.count ++;
+
+      ip->pinAddress      = inputPin;
+      ip->switchId        = switchId;
+      ip->integrator      = 0;
+      ip->outputValue     = bsp_getInputState(inputPin);
+      ip->lastOutputValue = ip->outputValue;
    }
    else
    {
@@ -241,24 +254,16 @@ void bsp_onInputStateChanged(uint32_t inputPin, bool newState)
 
    // send message to task
    struct input_event* event = allocateEvent();
-
-   event->inputPin                = inputPin;
-   event->isHigh                  = newState;
-   event->debounceIntervalExpired = false;
-
+   event->inputId            = ID_SWITCH_INTERRUPT;
    fx3_sendMessage(&inputDebouncerTCB, &event->element);
 }
 
 bool bsp_onDebounceIntervalTimeout(void)
 {
+   // send message to task
    struct input_event* event = allocateEvent();
-
-   event->inputPin                = 0;
-   event->isHigh                  = false;
-   event->debounceIntervalExpired = true;
-
+   event->inputId            = ID_TIMEOUT;
    fx3_sendMessage(&inputDebouncerTCB, &event->element);
 
-   // send message to task
    return true;
 }
