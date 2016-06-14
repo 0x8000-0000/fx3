@@ -7,7 +7,10 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Added
 
-   - I2C driver for STM32F4 boards
+   - Input debouncer for switches, and quadrature encoder
+   - SPI drivers for LIS3DH and LIS3DSH accelerometers
+   - SPI driver for STM32F4 chips
+   - I2C driver for STM32F4 chips
    - Drivers for BMP085 (pressure sensor), DS3231M (real-time clock) and MPU-6050 (accelerometer / gyroscope)
 
 ## v0.4.0 (2016-06-02)
