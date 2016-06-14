@@ -820,9 +820,7 @@ static bool handleWakeUpAlarm(struct fx3_command* cmd)
    assert(fx3Timer.firstSleepingTaskToAwake == sleepingTaskToAwake);
    fx3Timer.firstSleepingTaskToAwake = NULL;
 
-   bool runningTaskDethroned = false;
-
-   runningTaskDethroned |= markTaskReady(sleepingTaskToAwake);
+   bool runningTaskDethroned = markTaskReady(sleepingTaskToAwake);
    /*
     * done with the task that was waiting to be woken up
     */
@@ -837,7 +835,10 @@ static bool handleWakeUpAlarm(struct fx3_command* cmd)
       assert(TS_SLEEPING == fx3Timer.firstSleepingTaskToAwake->state);
       if (*nextWakeupDeadline <= bsp_getTimestamp_ticks())
       {
-         runningTaskDethroned |= markTaskReady(fx3Timer.firstSleepingTaskToAwake);
+         if (markTaskReady(fx3Timer.firstSleepingTaskToAwake))
+         {
+            runningTaskDethroned = true;
+         }
          fx3Timer.firstSleepingTaskToAwake = NULL;
       }
    }
@@ -903,7 +904,10 @@ static bool handleEpochRollover(struct fx3_command* cmd)
       assert(TS_SLEEPING == fx3Timer.firstSleepingTaskToAwake->state);
       if (0 == fx3Timer.firstSleepingTaskToAwake->sleepUntil_ticks)
       {
-         runningTaskDethroned |= markTaskReady(fx3Timer.firstSleepingTaskToAwake);
+         if (markTaskReady(fx3Timer.firstSleepingTaskToAwake))
+         {
+            runningTaskDethroned = true;
+         }
          fx3Timer.firstSleepingTaskToAwake = NULL;
       }
    }
@@ -1083,7 +1087,10 @@ static bool handleSemaphoreSignal(struct fx3_command* cmd)
       sem->waitList                    = highestPriorityWaitingTask->next;
       highestPriorityWaitingTask->next = NULL;
 
-      runningTaskDethroned |= markTaskReady(highestPriorityWaitingTask);
+      if (markTaskReady(highestPriorityWaitingTask))
+      {
+         runningTaskDethroned = true;
+      }
    }
 
    if (runningTaskDethroned)
@@ -1141,7 +1148,10 @@ bool fx3_processPendingCommands(void)
             switch (cmd->type)
             {
                case FX3_READY_TASK:
-                  contextSwitchNeeded |= markTaskReady(cmd->task);
+                  if (markTaskReady(cmd->task))
+                  {
+                     contextSwitchNeeded = true;
+                  }
                   freeFX3Command(cmd);
                   break;
 
@@ -1151,15 +1161,24 @@ bool fx3_processPendingCommands(void)
                   break;
 
                case FX3_TIMER_EVENT_WAKEUP:
-                  contextSwitchNeeded |= handleWakeUpAlarm(cmd);
+                  if (handleWakeUpAlarm(cmd))
+                  {
+                     contextSwitchNeeded = true;
+                  }
                   break;
 
                case FX3_TIMER_EVENT_EPOCH_ROLLOVER:
-                  contextSwitchNeeded |= handleEpochRollover(cmd);
+                  if (handleEpochRollover(cmd))
+                  {
+                     contextSwitchNeeded = true;
+                  }
                   break;
 
                case FX3_SIGNAL_SEMAPHORE:
-                  contextSwitchNeeded |= handleSemaphoreSignal(cmd);
+                  if (handleSemaphoreSignal(cmd))
+                  {
+                     contextSwitchNeeded = true;
+                  }
                   break;
 
                default:
