@@ -330,9 +330,9 @@ static void verifyTaskControlBlocks(bool expectTaskInRunningState)
     * check running queue
     * note; the queue is a heap, and indices start at 1
     */
-   for (uint32_t ii = 1; ii <= runnableTasks.size; ii ++)
+   for (uint32_t ii = 0; ii < runnableTasks.size; ii ++)
    {
-      uint32_t* priority = runnableTasks.memPool[ii];
+      uint32_t* priority = runnableTasks.memPool[ii + 1];
       struct task_control_block* readyTask = (struct task_control_block*) (((uint8_t*) priority) - (offsetof(struct task_control_block, effectivePriority)));
 
       assert((TS_READY == readyTask->state) || (TS_EXHAUSTED == readyTask->state));
@@ -553,6 +553,7 @@ void fx3_startMultitasking(void)
    uint32_t* firstTaskPrio = prq_pop(&runnableTasks);
 
    runningTask = (struct task_control_block*) (((uint8_t*) firstTaskPrio) - (offsetof(struct task_control_block, effectivePriority)));
+   assert(TS_READY == runningTask->state);
    runningTask->state = TS_RUNNING;
    runningTask->startedRunningAt_ticks = bsp_getTimestamp_ticks();
 
@@ -624,6 +625,8 @@ static void selectNextRunningTask(void)
       }
    }
 
+   assert(TS_READY == nextRunningTask->state);
+
    if (nextRunningTask->config->timeSlice_ticks)
    {
       assert(nextRunningTask->roundRobinSliceLeft_ticks);
@@ -638,7 +641,7 @@ static void selectNextRunningTask(void)
    nextRunningTask->startedRunning_count ++;
    nextRunningTask->startedRunningAt_ticks = lastContextSwitchAt;
 
-   verifyTaskControlBlocks(false);
+   verifyTaskControlBlocks(true);
 
 #ifdef FX3_RTT_TRACE
    if (&idleTask != nextRunningTask)
