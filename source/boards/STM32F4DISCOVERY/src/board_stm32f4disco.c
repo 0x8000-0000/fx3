@@ -90,16 +90,33 @@ static void initializeLEDs(void)
 
 static void initializeButtons(void)
 {
-   __GPIOA_CLK_ENABLE();
-
-   static const GPIO_InitTypeDef GPIO_InitStruct =
+   // physical button
    {
-      .Pin   = GPIO_PIN_0,
-      .Mode  = GPIO_MODE_IT_RISING_FALLING,
-      .Pull  = GPIO_NOPULL,
-      .Speed = GPIO_SPEED_FAST,
-   };
-   HAL_GPIO_Init(GPIOA, (GPIO_InitTypeDef*) &GPIO_InitStruct);
+      __GPIOA_CLK_ENABLE();
+
+      static const GPIO_InitTypeDef GPIO_InitStruct =
+      {
+         .Pin   = GPIO_PIN_0,
+         .Mode  = GPIO_MODE_IT_RISING_FALLING,
+         .Pull  = GPIO_NOPULL,
+         .Speed = GPIO_SPEED_FAST,
+      };
+      HAL_GPIO_Init(GPIOA, (GPIO_InitTypeDef*) &GPIO_InitStruct);
+   }
+
+   // rotary encoder
+   {
+      __GPIOC_CLK_ENABLE();
+
+      static const GPIO_InitTypeDef GPIO_InitStruct =
+      {
+         .Pin   = GPIO_PIN_1 | GPIO_PIN_2,
+         .Mode  = GPIO_MODE_IT_RISING_FALLING,
+         .Pull  = GPIO_PULLUP,
+         .Speed = GPIO_SPEED_FAST,
+      };
+      HAL_GPIO_Init(GPIOC, (GPIO_InitTypeDef*) &GPIO_InitStruct);
+   }
 }
 
 uint8_t transmitBufferSupport[512];

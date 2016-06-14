@@ -76,6 +76,8 @@ void chp_initialize(void)
    clockUpperBits = 0;
 
    HAL_NVIC_SetPriority(EXTI0_IRQn, 2, 3);
+   HAL_NVIC_SetPriority(EXTI1_IRQn, 2, 3);
+   HAL_NVIC_SetPriority(EXTI2_IRQn, 2, 3);
 }
 
 void chp_initializeSystemTimer(uint16_t prescaler)
@@ -309,5 +311,6 @@ void bsp_describeInterrupts(void)
    SEGGER_SYSVIEW_SendSysDesc("I#44=TIM2");
    SEGGER_SYSVIEW_SendSysDesc("I#22=EXTI0");
    SEGGER_SYSVIEW_SendSysDesc("I#23=EXTI1");
+   SEGGER_SYSVIEW_SendSysDesc("I#24=EXTI2");
 }
 #endif

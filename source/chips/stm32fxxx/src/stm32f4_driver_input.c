@@ -38,11 +38,15 @@ void bsp_requestNotificationForInputChange(uint32_t inputPin)
 void bsp_enableInputStateNotifications(void)
 {
    HAL_NVIC_EnableIRQ(EXTI0_IRQn);
+   HAL_NVIC_EnableIRQ(EXTI1_IRQn);
+   HAL_NVIC_EnableIRQ(EXTI2_IRQn);
 }
 
 void bsp_disableInputStateNotifications(void)
 {
    HAL_NVIC_DisableIRQ(EXTI0_IRQn);
+   HAL_NVIC_DisableIRQ(EXTI1_IRQn);
+   HAL_NVIC_DisableIRQ(EXTI2_IRQn);
 }
 
 void __attribute__((weak)) bsp_onInputStateChanged(uint32_t inputPin, bool status)
@@ -69,3 +73,42 @@ void EXTI0_IRQHandler(void)
 #endif
 }
 
+void EXTI1_IRQHandler(void)
+{
+#ifdef FX3_RTT_TRACE
+   SEGGER_SYSVIEW_RecordEnterISR();
+#endif
+
+   if ((EXTI->PR & GPIO_PIN_1))
+   {
+      EXTI->PR = GPIO_PIN_1;
+
+      bool PC1_status = (0 != (GPIOC->IDR & GPIO_PIN_1));
+      bsp_onInputStateChanged(PIN('C', 1), PC1_status);
+   }
+
+#ifdef FX3_RTT_TRACE
+   // we send a message that will wake-up the debouncing task
+   SEGGER_SYSVIEW_RecordExitISRToScheduler();
+#endif
+}
+
+void EXTI2_IRQHandler(void)
+{
+#ifdef FX3_RTT_TRACE
+   SEGGER_SYSVIEW_RecordEnterISR();
+#endif
+
+   if ((EXTI->PR & GPIO_PIN_2))
+   {
+      EXTI->PR = GPIO_PIN_2;
+
+      bool PC2_status = (0 != (GPIOC->IDR & GPIO_PIN_2));
+      bsp_onInputStateChanged(PIN('C', 2), PC2_status);
+   }
+
+#ifdef FX3_RTT_TRACE
+   // we send a message that will wake-up the debouncing task
+   SEGGER_SYSVIEW_RecordExitISRToScheduler();
+#endif
+}
