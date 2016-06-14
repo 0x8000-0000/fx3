@@ -56,6 +56,8 @@ enum command_type
 
    FX3_TIMER_REQUEST_SUSPEND,
 
+   FX3_CHECK_INBOX_FOR_LATE_ARRIVAL,
+
    /// Sent by timer handler to FX3
    FX3_TIMER_EVENT_WAKEUP,
    FX3_TIMER_EVENT_EPOCH_ROLLOVER,
@@ -847,7 +849,21 @@ void task_block(enum task_state newState)
    cancelRoundRobin();
 
    runningTask->state = newState;
-   bsp_scheduleContextSwitch();
+
+   if (TS_WAITING_FOR_MESSAGE == newState)
+   {
+      struct fx3_command* cmd = allocateFX3Command();
+
+      cmd->type   = FX3_CHECK_INBOX_FOR_LATE_ARRIVAL;
+      cmd->task   = runningTask;
+      cmd->object = 0;
+
+      postFX3Command(cmd);
+   }
+   else
+   {
+      bsp_scheduleContextSwitch();
+   }
 }
 
 static bool handleWakeUpAlarm(struct fx3_command* cmd)
@@ -1218,6 +1234,15 @@ bool fx3_processPendingCommands(void)
                   {
                      contextSwitchNeeded = true;
                   }
+                  break;
+
+               case FX3_CHECK_INBOX_FOR_LATE_ARRIVAL:
+                  if (cmd->task->inbox)
+                  {
+                     markTaskReady(cmd->task);
+                     contextSwitchNeeded = true;
+                  }
+                  freeFX3Command(cmd);
                   break;
 
                default:
