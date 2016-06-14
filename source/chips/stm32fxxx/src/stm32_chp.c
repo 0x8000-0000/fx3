@@ -77,7 +77,11 @@ void chp_initialize(void)
 
    HAL_NVIC_SetPriority(EXTI0_IRQn, 2, 3);
    HAL_NVIC_SetPriority(EXTI1_IRQn, 2, 3);
+#ifdef STM32F303xC
+   HAL_NVIC_SetPriority(EXTI2_TSC_IRQn, 2, 3);
+#else
    HAL_NVIC_SetPriority(EXTI2_IRQn, 2, 3);
+#endif
 }
 
 void chp_initializeSystemTimer(uint16_t prescaler)

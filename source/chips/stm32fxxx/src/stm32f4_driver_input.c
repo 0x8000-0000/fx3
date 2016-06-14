@@ -39,14 +39,22 @@ void bsp_enableInputStateNotifications(void)
 {
    HAL_NVIC_EnableIRQ(EXTI0_IRQn);
    HAL_NVIC_EnableIRQ(EXTI1_IRQn);
+#ifdef STM32F303xC
+   HAL_NVIC_EnableIRQ(EXTI2_TSC_IRQn);
+#else
    HAL_NVIC_EnableIRQ(EXTI2_IRQn);
+#endif
 }
 
 void bsp_disableInputStateNotifications(void)
 {
    HAL_NVIC_DisableIRQ(EXTI0_IRQn);
    HAL_NVIC_DisableIRQ(EXTI1_IRQn);
+#ifdef STM32F303xC
+   HAL_NVIC_DisableIRQ(EXTI2_TSC_IRQn);
+#else
    HAL_NVIC_DisableIRQ(EXTI2_IRQn);
+#endif
 }
 
 void __attribute__((weak)) bsp_onInputStateChanged(uint32_t inputPin, bool status)
@@ -93,7 +101,11 @@ void EXTI1_IRQHandler(void)
 #endif
 }
 
+#ifdef STM32F303xC
+void EXTI2_TSC_IRQHandler(void)
+#else
 void EXTI2_IRQHandler(void)
+#endif
 {
 #ifdef FX3_RTT_TRACE
    SEGGER_SYSVIEW_RecordEnterISR();
