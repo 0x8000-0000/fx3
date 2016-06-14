@@ -162,5 +162,8 @@ struct SPIBus
 
 #define PUSH_BUTTON0          PIN('A', 0)
 
+#define RIGHT_ENCODER_A       PIN('C', 1)
+#define RIGHT_ENCODER_B       PIN('C', 2)
+
 #endif // __BOARD_LOCAL_H__
 

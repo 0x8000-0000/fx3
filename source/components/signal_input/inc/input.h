@@ -70,15 +70,15 @@ void inp_recycleEvent(struct input_event* event);
  * @{
  */
 
-void inp_monitorEncoder(uint32_t inputPinA, uint32_t inputPinB, uint32_t delta);
+void inp_monitorEncoder(uint8_t encoderId, uint32_t inputPinA, uint32_t inputPinB, uint32_t delta);
 
-void inp_onEncoderUp(uint32_t inputPinA, uint32_t inputPinB);
+void inp_onEncoderUp(struct input_event* event);
 
-void inp_onEncoderDown(uint32_t inputPinA, uint32_t inputPinB);
+void inp_onEncoderDown(struct input_event* event);
 
-int32_t inp_getEncoderPosition(uint32_t inputPinA, uint32_t inputPinB);
+int32_t inp_getEncoderPosition(uint8_t encoderId);
 
-void inp_resetEncoderPosition(uint32_t inputPinA, uint32_t inputPinB);
+void inp_resetEncoderPosition(uint8_t encoderId);
 
 /** @} */
 

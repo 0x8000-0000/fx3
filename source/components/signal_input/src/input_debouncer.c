@@ -40,6 +40,10 @@
 #define MAX_DEBOUNCE_INPUT_COUNT 16
 #endif
 
+#ifndef MAX_QUADRATURE_ENCODER_COUNT
+#define MAX_QUADRATURE_ENCODER_COUNT 4
+#endif
+
 #ifndef MAX_EVENT_COUNT
 #define MAX_EVENT_COUNT 16
 #endif
@@ -75,12 +79,39 @@ struct input_pin_config
 
 _Static_assert(8 == sizeof(struct input_pin_config), "struct size");
 
+struct quadrature_encoder_input
+{
+   uint32_t pinAddress_A;
+   uint32_t pinAddress_B;
+   uint32_t delta;
+
+   unsigned int encoderId   : 8;
+
+   unsigned int integrator_A: 4;
+   unsigned int integrator_B: 4;
+
+   unsigned int currentValue: 2;
+   unsigned int lastValue   : 2;
+
+   unsigned int reserved    : 12;
+
+   int32_t position;
+   int32_t lastNotifiedAtPosition;
+};
+
+_Static_assert(24 == sizeof(struct quadrature_encoder_input), "struct size");
+
 static struct debounce_input
 {
    uint32_t count;
    struct input_pin_config pin[MAX_DEBOUNCE_INPUT_COUNT];
 }  debounceInput;
 
+static struct quadrature_encoder
+{
+   uint32_t count;
+   struct quadrature_encoder_input encoder[MAX_QUADRATURE_ENCODER_COUNT];
+}  quadratureEncoder;
 
 static volatile uint32_t eventBitmap;
 static struct input_event eventPool[MAX_EVENT_COUNT];
@@ -163,6 +194,127 @@ static bool pollInputSignals(void)
    return stateChange;
 }
 
+static const int8_t INCREMENT[4][4] =
+{
+   // 00  01  10  11
+   {   0, -1, +1,  9 },    // 00
+   {  +1,  0,  9, -1 },    // 01
+   {  -1,  9,  0, +1 },    // 10
+   {   9, +1, -1,  0 },    // 11
+};
+
+static bool pollEncoderSignals(void)
+{
+   bool stateChange = false;
+
+   for (uint32_t ii = 0; ii < quadratureEncoder.count; ii ++)
+   {
+      struct quadrature_encoder_input* qei = &quadratureEncoder.encoder[ii];
+
+      qei->lastValue = qei->currentValue;
+
+      /*
+       * pin A
+       */
+      if (bsp_getInputState(qei->pinAddress_A))
+      {
+         if (DEBOUNCE_INTEGRATOR_MAX > qei->integrator_A)
+         {
+            qei->integrator_A ++;
+         }
+      }
+      else
+      {
+         if (qei->integrator_A)
+         {
+            qei->integrator_A --;
+         }
+      }
+
+      if (0 == qei->integrator_A)
+      {
+         qei->currentValue &= 1;       // reset 2nd bit
+      }
+      else
+      {
+         if (DEBOUNCE_INTEGRATOR_MAX == qei->integrator_A)
+         {
+            qei->currentValue |= 2;    // set 2nd bit
+         }
+      }
+
+      /*
+       * pin B
+       */
+      if (bsp_getInputState(qei->pinAddress_B))
+      {
+         if (DEBOUNCE_INTEGRATOR_MAX > qei->integrator_B)
+         {
+            qei->integrator_B ++;
+         }
+      }
+      else
+      {
+         if (qei->integrator_B)
+         {
+            qei->integrator_B --;
+         }
+      }
+
+      if (0 == qei->integrator_B)
+      {
+         qei->currentValue &= 2;       // reset 1st bit
+      }
+      else
+      {
+         if (DEBOUNCE_INTEGRATOR_MAX == qei->integrator_B)
+         {
+            qei->currentValue |= 1;     // set 1st bit
+         }
+      }
+
+      if (qei->currentValue != qei->lastValue)
+      {
+         stateChange = true;
+
+         int8_t increment = INCREMENT[qei->lastValue][qei->currentValue];
+         assert(increment);
+
+         if (9 != increment)
+         {
+            qei->position += increment;
+         }
+         else
+         {
+            assert(false);
+         }
+
+         int32_t delta = qei->position - qei->lastNotifiedAtPosition;
+         if ((0 < delta) && (qei->delta <= delta))
+         {
+            struct input_event* event = allocateEvent();
+            event->inputId            = qei->encoderId;
+            event->isHigh             = true;
+            event->position           = qei->position;
+            inp_onEncoderUp(event);
+            qei->lastNotifiedAtPosition = qei->position;
+         }
+
+         if ((0 > delta) && (qei->delta <= -delta))
+         {
+            struct input_event* event = allocateEvent();
+            event->inputId            = qei->encoderId;
+            event->isHigh             = false;
+            event->position           = qei->position;
+            inp_onEncoderDown(event);
+            qei->lastNotifiedAtPosition = qei->position;
+         }
+      }
+   }
+
+   return stateChange;
+}
+
 static uint32_t debouncePeriods;
 
 static void debounceInputs(const void* arg __attribute__((unused)))
@@ -180,6 +332,11 @@ static void debounceInputs(const void* arg __attribute__((unused)))
          debouncePeriods --;
 
          if (pollInputSignals())
+         {
+            debouncePeriods = DEBOUNCE_SAMPLE_COUNT;
+         }
+
+         if (pollEncoderSignals())
          {
             debouncePeriods = DEBOUNCE_SAMPLE_COUNT;
          }
@@ -220,6 +377,7 @@ static struct task_control_block inputDebouncerTCB;
 void inp_initialize(void)
 {
    memset(&debounceInput, 0, sizeof(debounceInput));
+   memset(&quadratureEncoder, 0, sizeof(quadratureEncoder));
 
    bit_initialize(&eventBitmap, MAX_EVENT_COUNT);
 
@@ -267,3 +425,91 @@ bool bsp_onDebounceIntervalTimeout(void)
 
    return true;
 }
+
+void inp_monitorEncoder(uint8_t encoderId, uint32_t inputPinA, uint32_t inputPinB, uint32_t delta)
+{
+   if (quadratureEncoder.count < MAX_QUADRATURE_ENCODER_COUNT)
+   {
+      unsigned int inputA = bsp_getInputState(inputPinA);
+      unsigned int inputB = bsp_getInputState(inputPinB);
+
+      struct quadrature_encoder_input* qei = &quadratureEncoder.encoder[quadratureEncoder.count];
+      quadratureEncoder.count ++;
+
+      qei->pinAddress_A           = inputPinA;
+      qei->pinAddress_B           = inputPinB;
+      qei->delta                  = delta;
+      qei->encoderId              = encoderId;
+
+      qei->integrator_A           = 0;
+      qei->integrator_B           = 0;
+
+      qei->currentValue           = (inputA << 1) | inputB;
+      qei->lastValue              = qei->currentValue;
+
+      qei->position               = 0;
+      qei->lastNotifiedAtPosition = 0;
+   }
+   else
+   {
+      assert(false);
+   }
+}
+
+int32_t inp_getEncoderPosition(uint8_t encoderId)
+{
+   int32_t result = 0;
+   bool found = false;
+
+   for (uint32_t ii = 0; ii < quadratureEncoder.count; ii ++)
+   {
+      struct quadrature_encoder_input* qei = &quadratureEncoder.encoder[ii];
+
+      if (qei->encoderId == encoderId)
+      {
+         result = qei->position;
+         found = true;
+         break;
+      }
+   }
+
+   assert(found);
+
+   return result;
+}
+
+void inp_resetEncoderPosition(uint8_t encoderId)
+{
+   bool found = false;
+
+   for (uint32_t ii = 0; ii < quadratureEncoder.count; ii ++)
+   {
+      struct quadrature_encoder_input* qei = &quadratureEncoder.encoder[ii];
+
+      if (qei->encoderId == encoderId)
+      {
+         qei->position               = 0;
+         qei->lastNotifiedAtPosition = 0;
+         found = true;
+         break;
+      }
+   }
+
+   assert(found);
+}
+
+void __attribute__((weak)) inp_onSwitchStateChange(struct input_event* event)
+{
+   inp_recycleEvent(event);
+}
+
+void __attribute__((weak)) inp_onEncoderUp(struct input_event* event)
+{
+   inp_recycleEvent(event);
+}
+
+void __attribute__((weak)) inp_onEncoderDown(struct input_event* event)
+{
+   inp_recycleEvent(event);
+}
+
