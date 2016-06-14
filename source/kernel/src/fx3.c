@@ -214,28 +214,44 @@ static inline uint32_t computeEffectivePriority(enum task_state state, const str
  */
 static bool markTaskReady(struct task_control_block* tcb)
 {
-   assert(tcb->config->timeSlice_ticks >= tcb->roundRobinSliceLeft_ticks);
-   if (tcb->config->timeSlice_ticks && (0 == tcb->roundRobinSliceLeft_ticks))
+   if (TS_READY != tcb->state)
    {
-      tcb->state = TS_EXHAUSTED;
+      for (uint32_t ii = 0; ii < runnableTasks.size; ii ++)
+      {
+         uint32_t* priority = runnableTasks.memPool[ii + 1];
+         struct task_control_block* readyTask = (struct task_control_block*) (((uint8_t*) priority) - (offsetof(struct task_control_block, effectivePriority)));
+
+         assert(readyTask != tcb);
+
+         assert((TS_READY == readyTask->state) || (TS_EXHAUSTED == readyTask->state));
+      }
+
+      assert(tcb->config->timeSlice_ticks >= tcb->roundRobinSliceLeft_ticks);
+      if (tcb->config->timeSlice_ticks && (0 == tcb->roundRobinSliceLeft_ticks))
+      {
+         tcb->state = TS_EXHAUSTED;
+      }
+      else
+      {
+         tcb->state = TS_READY;
+      }
+
+      tcb->sleepUntil_ticks  = 0;
+      tcb->effectivePriority = computeEffectivePriority(tcb->state, tcb->config);
+      prq_push(&runnableTasks, &tcb->effectivePriority);
+
+#ifdef FX3_RTT_TRACE
+      if (&idleTask != tcb)
+      {
+         SEGGER_SYSVIEW_OnTaskStartReady((uint32_t) tcb);
+      }
+#endif
+      return (tcb->effectivePriority < runningTask->effectivePriority);
    }
    else
    {
-      tcb->state = TS_READY;
+      return true;
    }
-
-   tcb->sleepUntil_ticks  = 0;
-   tcb->effectivePriority = computeEffectivePriority(tcb->state, tcb->config);
-   prq_push(&runnableTasks, &tcb->effectivePriority);
-
-#ifdef FX3_RTT_TRACE
-   if (&idleTask != tcb)
-   {
-      SEGGER_SYSVIEW_OnTaskStartReady((uint32_t) tcb);
-   }
-#endif
-
-   return (tcb->effectivePriority < runningTask->effectivePriority);
 }
 
 static void scheduleReadyTask(struct task_control_block* tcb)
