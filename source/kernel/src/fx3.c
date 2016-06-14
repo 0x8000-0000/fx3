@@ -272,6 +272,11 @@ static void verifyTaskControlBlocks(bool expectTaskInRunningState)
    //SEGGER_SYSVIEW_RecordVoid(32);
 #endif
 
+   for (uint32_t ii = 0; ii < tasksCreated_count; ii ++)
+   {
+      allValidTaskControlBlocks[ii]->visited = 0;
+   }
+
    bool foundTaskInRunningState = false;
    uint32_t tasksVisited = 0;
 
@@ -285,6 +290,8 @@ static void verifyTaskControlBlocks(bool expectTaskInRunningState)
       assert(tcb);
       assert(tcb->config);
       assert(tcb->config->priority);
+
+      tcb->visited ++;
 
       tasksVisited ++;
 
@@ -342,6 +349,11 @@ static void verifyTaskControlBlocks(bool expectTaskInRunningState)
 
    assert(tasksVisited == tasksCreated_count);
 
+   for (uint32_t ii = 0; ii < tasksCreated_count; ii ++)
+   {
+      assert(1 == allValidTaskControlBlocks[ii]->visited);
+   }
+
    /*
     * check running queue
     * note; the queue is a heap, and indices start at 1
@@ -350,6 +362,8 @@ static void verifyTaskControlBlocks(bool expectTaskInRunningState)
    {
       uint32_t* priority = runnableTasks.memPool[ii + 1];
       struct task_control_block* readyTask = (struct task_control_block*) (((uint8_t*) priority) - (offsetof(struct task_control_block, effectivePriority)));
+
+      readyTask->visited ++;
 
       assert((TS_READY == readyTask->state) || (TS_EXHAUSTED == readyTask->state));
    }
@@ -363,6 +377,8 @@ static void verifyTaskControlBlocks(bool expectTaskInRunningState)
       uint32_t* sleepUntil = fx3Timer.sleepingTasks->memPool[ii + 1];
       struct task_control_block* sleepingTask = (struct task_control_block*) (((uint8_t*) sleepUntil) - (offsetof(struct task_control_block, sleepUntil_ticks)));;
 
+      sleepingTask->visited ++;
+
       assert(TS_SLEEPING == sleepingTask->state);
    }
 
@@ -371,7 +387,30 @@ static void verifyTaskControlBlocks(bool expectTaskInRunningState)
       uint32_t* sleepUntil = fx3Timer.sleepingTasksNextEpoch->memPool[ii + 1];
       struct task_control_block* sleepingTask = (struct task_control_block*) (((uint8_t*) sleepUntil) - (offsetof(struct task_control_block, sleepUntil_ticks)));;
 
+      sleepingTask->visited ++;
+
       assert(TS_SLEEPING == sleepingTask->state);
+   }
+
+   if (fx3Timer.firstSleepingTaskToAwake)
+   {
+      assert(1 == fx3Timer.firstSleepingTaskToAwake->visited);
+      fx3Timer.firstSleepingTaskToAwake->visited ++;
+   }
+
+   for (uint32_t ii = 0; ii < tasksCreated_count; ii ++)
+   {
+      /*
+       * At this point we visited twice all ready tasks and all sleeping tasks
+       *
+       * The only ones left are blocked, running or about to sleep
+       */
+      if (1 == allValidTaskControlBlocks[ii]->visited)
+      {
+         assert((TS_WAITING_FOR_MESSAGE == allValidTaskControlBlocks[ii]->state)
+               || (TS_RUNNING == allValidTaskControlBlocks[ii]->state)
+               || (TS_ABOUT_TO_SLEEP == allValidTaskControlBlocks[ii]->state));
+      }
    }
 
 #ifdef FX3_RTT_TRACE
@@ -1188,6 +1227,8 @@ bool fx3_processPendingCommands(void)
          }
       }
    }
+
+   verifyTaskControlBlocks(false);
 
    if (contextSwitchNeeded)
    {

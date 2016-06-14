@@ -125,7 +125,13 @@ struct task_control_block
     */
    enum task_state               state;
 
-   uint8_t                       padding[3];
+   /** Used during the task status verification
+    */
+   uint8_t                       visited;
+
+   /** Unused for now
+    */
+   uint8_t                       reserved[2];
 
    /** What object is this task waiting on
     */
