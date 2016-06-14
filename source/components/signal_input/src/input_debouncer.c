@@ -49,7 +49,7 @@
 #endif
 
 #ifndef DEBOUNCE_INTERVAL_MS
-#define DEBOUNCE_INTERVAL_MS 2
+#define DEBOUNCE_INTERVAL_MS 1
 #endif
 
 #ifndef DEBOUNCE_SAMPLE_COUNT
