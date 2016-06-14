@@ -704,7 +704,8 @@ bool handleSleepRequest(struct fx3_command* cmd)
       assert(tt < tasksCreated_count);
    }
 
-   assert(TS_SLEEPING == sleepyTask->state);
+   assert(TS_ABOUT_TO_SLEEP == sleepyTask->state);
+   sleepyTask->state = TS_SLEEPING;
    assert(timeout_ms);
 
    const uint32_t sleepDuration_ticks = bsp_getTicksForMS(timeout_ms);
@@ -787,7 +788,7 @@ void fx3_suspendTask(uint32_t timeout_ms)
 {
    assert(timeout_ms);
 
-   runningTask->state = TS_SLEEPING;
+   runningTask->state = TS_ABOUT_TO_SLEEP;
    cancelRoundRobin();
 
    struct fx3_command* cmd = allocateFX3Command();

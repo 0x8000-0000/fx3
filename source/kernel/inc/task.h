@@ -55,6 +55,7 @@ enum task_state
    TS_RESTING,                   // yielded before its round-robin quanta was exhausted
    TS_EXHAUSTED,                 // used-up its round-robin quanta
    TS_SLEEPING,                  // voluntary sleep
+   TS_ABOUT_TO_SLEEP,
    TS_WAITING_FOR_MUTEX,
    TS_WAITING_FOR_SEMAPHORE,
    TS_WAITING_FOR_EVENT,
