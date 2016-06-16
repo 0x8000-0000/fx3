@@ -32,7 +32,7 @@
 #include <usart.h>
 #include <i2c.h>
 
-#include <mpu-6050.h>
+#include <MPU-6050.h>
 
 static const struct USARTConfiguration usartConfig =
 {
